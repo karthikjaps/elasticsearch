@@ -23,6 +23,7 @@ import org.elasticsearch.ElasticsearchIllegalArgumentException;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.Aggregator.BucketAggregationMode;
+import org.elasticsearch.search.aggregations.Aggregator.ExecutionMode;
 import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
 import org.elasticsearch.search.aggregations.support.AggregationContext;
 import org.elasticsearch.search.aggregations.support.ValueSourceAggregatorFactory;
@@ -45,8 +46,10 @@ public class TermsAggregatorFactory extends ValueSourceAggregatorFactory {
     private final long minDocCount;
     private final IncludeExclude includeExclude;
     private final String executionHint;
+    private ExecutionMode executionMode;
 
-    public TermsAggregatorFactory(String name, ValuesSourceConfig valueSourceConfig, InternalOrder order, int requiredSize, int shardSize, long minDocCount, IncludeExclude includeExclude, String executionHint) {
+    public TermsAggregatorFactory(String name, ValuesSourceConfig valueSourceConfig, InternalOrder order, int requiredSize, 
+            int shardSize, long minDocCount, IncludeExclude includeExclude, String executionHint, ExecutionMode executionMode) {
         super(name, StringTerms.TYPE.name(), valueSourceConfig);
         this.order = order;
         this.requiredSize = requiredSize;
@@ -54,6 +57,7 @@ public class TermsAggregatorFactory extends ValueSourceAggregatorFactory {
         this.minDocCount = minDocCount;
         this.includeExclude = includeExclude;
         this.executionHint = executionHint;
+        this.executionMode = executionMode;
     }
 
     @Override
@@ -134,9 +138,9 @@ public class TermsAggregatorFactory extends ValueSourceAggregatorFactory {
 
             if (execution.equals(EXECUTION_HINT_VALUE_ORDINALS)) {
                 assert includeExclude == null;
-                return new StringTermsAggregator.WithOrdinals(name, factories, (BytesValuesSource.WithOrdinals) valuesSource, estimatedBucketCount, order, requiredSize, shardSize, minDocCount, aggregationContext, parent);
+                return new StringTermsAggregator.WithOrdinals(name, factories, (BytesValuesSource.WithOrdinals) valuesSource, estimatedBucketCount, order, requiredSize, shardSize, minDocCount, aggregationContext, parent, executionMode);
             } else {
-                return new StringTermsAggregator(name, factories, valuesSource, estimatedBucketCount, order, requiredSize, shardSize, minDocCount, includeExclude, aggregationContext, parent);
+                return new StringTermsAggregator(name, factories, valuesSource, estimatedBucketCount, order, requiredSize, shardSize, minDocCount, includeExclude, aggregationContext, parent, executionMode);
             }
         }
 
@@ -147,9 +151,9 @@ public class TermsAggregatorFactory extends ValueSourceAggregatorFactory {
 
         if (valuesSource instanceof NumericValuesSource) {
             if (((NumericValuesSource) valuesSource).isFloatingPoint()) {
-                return new DoubleTermsAggregator(name, factories, (NumericValuesSource) valuesSource, estimatedBucketCount, order, requiredSize, shardSize, minDocCount, aggregationContext, parent);
+                return new DoubleTermsAggregator(name, factories, (NumericValuesSource) valuesSource, estimatedBucketCount, order, requiredSize, shardSize, minDocCount, aggregationContext, parent, executionMode);
             }
-            return new LongTermsAggregator(name, factories, (NumericValuesSource) valuesSource, estimatedBucketCount, order, requiredSize, shardSize, minDocCount, aggregationContext, parent);
+            return new LongTermsAggregator(name, factories, (NumericValuesSource) valuesSource, estimatedBucketCount, order, requiredSize, shardSize, minDocCount, aggregationContext, parent, executionMode);
         }
 
         throw new AggregationExecutionException("terms aggregation cannot be applied to field [" + valuesSourceConfig.fieldContext().field() +

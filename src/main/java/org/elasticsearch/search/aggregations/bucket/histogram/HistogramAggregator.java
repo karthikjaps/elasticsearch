@@ -62,9 +62,10 @@ public class HistogramAggregator extends BucketsAggregator {
                                long initialCapacity,
                                InternalHistogram.Factory<?> histogramFactory,
                                AggregationContext aggregationContext,
-                               Aggregator parent) {
+                               Aggregator parent,
+                               ExecutionMode executionMode) {
 
-        super(name, BucketAggregationMode.PER_BUCKET, factories, initialCapacity, aggregationContext, parent);
+        super(name, BucketAggregationMode.PER_BUCKET, factories, initialCapacity, aggregationContext, parent, executionMode);
         this.valuesSource = valuesSource;
         this.rounding = rounding;
         this.order = order;
@@ -77,7 +78,7 @@ public class HistogramAggregator extends BucketsAggregator {
 
     @Override
     public boolean shouldCollect() {
-        return valuesSource != null;
+        return (super.shouldCollect()) && (valuesSource != null);
     }
 
     @Override
@@ -90,20 +91,36 @@ public class HistogramAggregator extends BucketsAggregator {
         assert owningBucketOrdinal == 0;
         final int valuesCount = values.setDocument(doc);
 
-        long previousKey = Long.MIN_VALUE;
-        for (int i = 0; i < valuesCount; ++i) {
-            long value = values.nextValue();
-            long key = rounding.roundKey(value);
-            assert key >= previousKey;
-            if (key == previousKey) {
-                continue;
+        if(passNumber>0) {
+            long previousKey = Long.MIN_VALUE;
+            for (int i = 0; i < valuesCount; ++i) {
+                long value = values.nextValue();
+                long key = rounding.roundKey(value);
+                assert key >= previousKey;
+                if (key == previousKey) {
+                    continue;
+                }
+                long bucketOrdinal = bucketOrds.find(key);
+                //We don't call collectBucket on the second pass - merely handoff to child aggs
+                collectBucketNoCounts(doc, bucketOrdinal);
+                previousKey = key;
             }
-            long bucketOrd = bucketOrds.add(key);
-            if (bucketOrd < 0) { // already seen
-                bucketOrd = -1 - bucketOrd;
-            }
-            collectBucket(doc, bucketOrd);
-            previousKey = key;
+        } else {
+            long previousKey = Long.MIN_VALUE;
+            for (int i = 0; i < valuesCount; ++i) {
+                long value = values.nextValue();
+                long key = rounding.roundKey(value);
+                assert key >= previousKey;
+                if (key == previousKey) {
+                    continue;
+                }
+                long bucketOrd = bucketOrds.add(key);
+                if (bucketOrd < 0) { // already seen
+                    bucketOrd = -1 - bucketOrd;
+                }
+                collectBucket(doc, bucketOrd);
+                previousKey = key;
+            }            
         }
     }
 
@@ -159,13 +176,13 @@ public class HistogramAggregator extends BucketsAggregator {
 
         @Override
         protected Aggregator createUnmapped(AggregationContext aggregationContext, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, minDocCount, null, 0, histogramFactory, aggregationContext, parent);
+            return new HistogramAggregator(name, factories, rounding, order, keyed, minDocCount, null, 0, histogramFactory, aggregationContext, parent, ExecutionMode.SINGLE_PASS);
         }
 
         @Override
         protected Aggregator create(NumericValuesSource valuesSource, long expectedBucketsCount, AggregationContext aggregationContext, Aggregator parent) {
             // todo if we'll keep track of min/max values in IndexFieldData, we could use the max here to come up with a better estimation for the buckets count
-            return new HistogramAggregator(name, factories, rounding, order, keyed, minDocCount, valuesSource, 50, histogramFactory, aggregationContext, parent);
+            return new HistogramAggregator(name, factories, rounding, order, keyed, minDocCount, valuesSource, 50, histogramFactory, aggregationContext, parent, ExecutionMode.SINGLE_PASS);
         }
 
     }

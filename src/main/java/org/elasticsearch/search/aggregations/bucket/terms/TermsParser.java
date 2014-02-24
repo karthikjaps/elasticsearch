@@ -28,6 +28,7 @@ import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
+import org.elasticsearch.search.aggregations.Aggregator.ExecutionMode;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
 import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
 import org.elasticsearch.search.aggregations.support.FieldContext;
@@ -73,6 +74,8 @@ public class TermsParser implements Aggregator.Parser {
         int excludeFlags = 0; // 0 means no flags
         String executionHint = null;
         long minDocCount = 1;
+        ExecutionMode executionMode=ExecutionMode.SINGLE_PASS;
+        
 
 
         XContentParser.Token token;
@@ -89,6 +92,8 @@ public class TermsParser implements Aggregator.Parser {
                     scriptLang = parser.text();
                 } else if ("value_type".equals(currentFieldName) || "valueType".equals(currentFieldName)) {
                     valueType = Terms.ValueType.resolveType(parser.text());
+                } else if ("executionMode".equals(currentFieldName)) {
+                    executionMode = ExecutionMode.parse(parser.text());
                 } else if ("format".equals(currentFieldName)) {
                     format = parser.text();
                 } else if ("include".equals(currentFieldName)) {
@@ -217,14 +222,14 @@ public class TermsParser implements Aggregator.Parser {
             if (!assumeUnique) {
                 config.ensureUnique(true);
             }
-            return new TermsAggregatorFactory(aggregationName, config, order, requiredSize, shardSize, minDocCount, includeExclude, executionHint);
+            return new TermsAggregatorFactory(aggregationName, config, order, requiredSize, shardSize, minDocCount, includeExclude, executionHint, executionMode);
         }
 
         FieldMapper<?> mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
             ValuesSourceConfig<?> config = new ValuesSourceConfig<BytesValuesSource>(BytesValuesSource.class);
             config.unmapped(true);
-            return new TermsAggregatorFactory(aggregationName, config, order, requiredSize, shardSize, minDocCount, includeExclude, executionHint);
+            return new TermsAggregatorFactory(aggregationName, config, order, requiredSize, shardSize, minDocCount, includeExclude, executionHint, executionMode);
         }
         IndexFieldData<?> indexFieldData = context.fieldData().getForField(mapper);
 
@@ -266,7 +271,8 @@ public class TermsParser implements Aggregator.Parser {
             config.ensureUnique(true);
         }
 
-        return new TermsAggregatorFactory(aggregationName, config, order, requiredSize, shardSize, minDocCount, includeExclude, executionHint);
+        return new TermsAggregatorFactory(aggregationName, config, order, requiredSize, shardSize, minDocCount, 
+                includeExclude, executionHint, executionMode);
     }
 
     static InternalOrder resolveOrder(String key, boolean asc) {

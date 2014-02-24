@@ -55,7 +55,11 @@ public class MissingAggregator extends SingleBucketAggregator {
     @Override
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
         if (valuesSource == null || values.setDocument(doc) == 0) {
-            collectBucket(doc, owningBucketOrdinal);
+            if (passNumber == 0) {
+                collectBucket(doc, owningBucketOrdinal);
+            } else {
+                collectBucketNoCounts(doc, owningBucketOrdinal);
+            }
         }
     }
 

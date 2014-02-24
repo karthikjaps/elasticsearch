@@ -32,6 +32,7 @@ import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexGeoPointFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
+import org.elasticsearch.search.aggregations.AggregationPhase.ReplayableAggregationsCollector;
 import org.elasticsearch.search.aggregations.support.bytes.BytesValuesSource;
 import org.elasticsearch.search.aggregations.support.geopoints.GeoPointValuesSource;
 import org.elasticsearch.search.aggregations.support.numeric.NumericValuesSource;
@@ -55,6 +56,8 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
 
     private AtomicReaderContext reader;
     private Scorer scorer;
+
+    private ReplayableAggregationsCollector replayableMatches;
 
     public AggregationContext(SearchContext searchContext) {
         this.searchContext = searchContext;
@@ -263,6 +266,14 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         }
     }
 
+    public void setReplayableMatches(ReplayableAggregationsCollector replayableAggregationsCollector) {
+        this.replayableMatches = replayableAggregationsCollector;
+    }
+
+    public ReplayableAggregationsCollector getReplayableMatches() {
+        return replayableMatches;
+    }
+            
     private static class ConfigCacheKey {
 
         private final String field;

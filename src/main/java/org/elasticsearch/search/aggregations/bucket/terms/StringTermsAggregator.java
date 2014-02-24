@@ -27,13 +27,13 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.collect.Iterators2;
 import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.BytesRefHash;
 import org.elasticsearch.common.util.LongArray;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.ordinals.Ordinals;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
-import org.elasticsearch.common.util.BytesRefHash;
 import org.elasticsearch.search.aggregations.bucket.terms.support.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
 import org.elasticsearch.search.aggregations.support.AggregationContext;
@@ -53,15 +53,15 @@ public class StringTermsAggregator extends BucketsAggregator {
     private final int requiredSize;
     private final int shardSize;
     private final long minDocCount;
-    protected final BytesRefHash bucketOrds;
+    protected BytesRefHash bucketOrds;
     private final IncludeExclude includeExclude;
     private BytesValues values;
 
     public StringTermsAggregator(String name, AggregatorFactories factories, ValuesSource valuesSource, long estimatedBucketCount,
                                  InternalOrder order, int requiredSize, int shardSize, long minDocCount,
-                                 IncludeExclude includeExclude, AggregationContext aggregationContext, Aggregator parent) {
+                                 IncludeExclude includeExclude, AggregationContext aggregationContext, Aggregator parent, ExecutionMode executionMode) {
 
-        super(name, BucketAggregationMode.PER_BUCKET, factories, estimatedBucketCount, aggregationContext, parent);
+        super(name, BucketAggregationMode.PER_BUCKET, factories, estimatedBucketCount, aggregationContext, parent, executionMode);
         this.valuesSource = valuesSource;
         this.order = InternalOrder.validate(order, this);
         this.requiredSize = requiredSize;
@@ -69,11 +69,6 @@ public class StringTermsAggregator extends BucketsAggregator {
         this.minDocCount = minDocCount;
         this.includeExclude = includeExclude;
         bucketOrds = new BytesRefHash(estimatedBucketCount, aggregationContext.bigArrays());
-    }
-
-    @Override
-    public boolean shouldCollect() {
-        return true;
     }
 
     @Override
@@ -85,20 +80,33 @@ public class StringTermsAggregator extends BucketsAggregator {
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
         assert owningBucketOrdinal == 0;
         final int valuesCount = values.setDocument(doc);
-
-        for (int i = 0; i < valuesCount; ++i) {
-            final BytesRef bytes = values.nextValue();
-            if (includeExclude != null && !includeExclude.accept(bytes)) {
-                continue;
-            }
-            final int hash = values.currentValueHash();
-            assert hash == bytes.hashCode();
-            long bucketOrdinal = bucketOrds.add(bytes, hash);
-            if (bucketOrdinal < 0) { // already seen
-                bucketOrdinal = - 1 - bucketOrdinal;
-            }
-            collectBucket(doc, bucketOrdinal);
+        
+        if(passNumber>0){
+            for (int i = 0; i < valuesCount; ++i) {
+                final BytesRef bytes = values.nextValue();
+                final int hash = values.currentValueHash();
+                assert hash == bytes.hashCode();
+                long bucketOrdinal = bucketOrds.find(bytes, hash);
+                if (bucketDocCount(bucketOrdinal) != PRUNED_BUCKET) {
+                    collectBucketNoCounts(doc, bucketOrdinal);
+                }
+            }            
+        } else {
+            for (int i = 0; i < valuesCount; ++i) {
+                final BytesRef bytes = values.nextValue();
+                if (includeExclude != null && !includeExclude.accept(bytes)) {
+                    continue;
+                }
+                final int hash = values.currentValueHash();
+                assert hash == bytes.hashCode();
+                long bucketOrdinal = bucketOrds.add(bytes, hash);
+                if (bucketOrdinal < 0) { // already seen
+                    bucketOrdinal = - 1 - bucketOrdinal;
+                }
+                collectBucket(doc, bucketOrdinal);
+            }            
         }
+
     }
 
     /** Returns an iterator over the field data terms. */
@@ -140,11 +148,16 @@ public class StringTermsAggregator extends BucketsAggregator {
             };
         }
     }
+    
+    
+    
 
     @Override
-    public StringTerms buildAggregation(long owningBucketOrdinal) {
-        assert owningBucketOrdinal == 0;
-
+    protected void doPostCollection() {
+        if (passNumber > 0) {
+            //We have already pruned the buckets identified in the first pass
+            return;
+        }
         if (minDocCount == 0 && (order != InternalOrder.COUNT_DESC || bucketOrds.size() < requiredSize)) {
             // we need to fill-in the blanks
             List<BytesValues.WithOrdinals> valuesWithOrdinals = Lists.newArrayList();
@@ -218,8 +231,7 @@ public class StringTermsAggregator extends BucketsAggregator {
         }
 
         final int size = (int) Math.min(bucketOrds.size(), shardSize);
-
-        BucketPriorityQueue ordered = new BucketPriorityQueue(size, order.comparator(this));
+        prunedBuckets = new BucketPriorityQueue(size, order.comparator(this));
         StringTerms.Bucket spare = null;
         for (int i = 0; i < bucketOrds.size(); i++) {
             if (spare == null) {
@@ -228,18 +240,39 @@ public class StringTermsAggregator extends BucketsAggregator {
             bucketOrds.get(i, spare.termBytes);
             spare.docCount = bucketDocCount(i);
             spare.bucketOrd = i;
-            spare = (StringTerms.Bucket) ordered.insertWithOverflow(spare);
+            spare = (StringTerms.Bucket) prunedBuckets.insertWithOverflow(spare);
+            if (spare != null) {
+                //Pick up buckets that don't make the final cut and mark the ordinal as pruned.
+                clearDocCount(spare.bucketOrd);
+            }            
         }
+        
+    }
+    BucketPriorityQueue prunedBuckets;
 
-        final InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
-        for (int i = ordered.size() - 1; i >= 0; --i) {
-            final StringTerms.Bucket bucket = (StringTerms.Bucket) ordered.pop();
-            // the terms are owned by the BytesRefHash, we need to pull a copy since the BytesRef hash data may be recycled at some point
-            bucket.termBytes = BytesRef.deepCopyOf(bucket.termBytes);
-            bucket.aggregations = bucketAggregations(bucket.bucketOrd);
-            list[i] = bucket;
+    
+    
+    @Override
+    public StringTerms buildAggregation(long owningBucketOrdinal) {
+        assert owningBucketOrdinal == 0;
+        
+        final InternalTerms.Bucket[] list;
+        
+        if (prunedBuckets == null) {
+            list = new InternalTerms.Bucket[0];
+        } else {
+            list = new InternalTerms.Bucket[prunedBuckets.size()];
+            for (int i = prunedBuckets.size() - 1; i >= 0; --i) {
+                final StringTerms.Bucket bucket = (StringTerms.Bucket) prunedBuckets.pop();
+                // the terms are owned by the BytesRefHash, we need to pull a
+                // copy since the BytesRef hash data may be recycled at some
+                // point
+                bucket.termBytes = BytesRef.deepCopyOf(bucket.termBytes);
+                bucket.aggregations = bucketAggregations(bucket.bucketOrd);
+                list[i] = bucket;
+            }
         }
-
+            
         return new StringTerms(name, order, requiredSize, minDocCount, Arrays.asList(list));
     }
 
@@ -264,8 +297,8 @@ public class StringTermsAggregator extends BucketsAggregator {
         private LongArray ordinalToBucket;
 
         public WithOrdinals(String name, AggregatorFactories factories, BytesValuesSource.WithOrdinals valuesSource, long esitmatedBucketCount,
-                InternalOrder order, int requiredSize, int shardSize, long minDocCount, AggregationContext aggregationContext, Aggregator parent) {
-            super(name, factories, valuesSource, esitmatedBucketCount, order, requiredSize, shardSize, minDocCount, null, aggregationContext, parent);
+                InternalOrder order, int requiredSize, int shardSize, long minDocCount, AggregationContext aggregationContext, Aggregator parent, ExecutionMode executionMode) {
+            super(name, factories, valuesSource, esitmatedBucketCount, order, requiredSize, shardSize, minDocCount, null, aggregationContext, parent, executionMode);
             this.valuesSource = valuesSource;
         }
 
@@ -287,22 +320,43 @@ public class StringTermsAggregator extends BucketsAggregator {
         public void collect(int doc, long owningBucketOrdinal) throws IOException {
             assert owningBucketOrdinal == 0 : "this is a per_bucket aggregator";
             final int valuesCount = ordinals.setDocument(doc);
-
-            for (int i = 0; i < valuesCount; ++i) {
-                final long ord = ordinals.nextOrd();
-                long bucketOrd = ordinalToBucket.get(ord);
-                if (bucketOrd < 0) { // unlikely condition on a low-cardinality field
-                    final BytesRef bytes = bytesValues.getValueByOrd(ord);
-                    final int hash = bytesValues.currentValueHash();
-                    assert hash == bytes.hashCode();
-                    bucketOrd = bucketOrds.add(bytes, hash);
-                    if (bucketOrd < 0) { // already seen in another segment
-                        bucketOrd = - 1 - bucketOrd;
+            
+            if(passNumber>0){
+                //Repeat pass - only delegate to child aggs for buckets that survived first pass pruning
+                for (int i = 0; i < valuesCount; ++i) {
+                    final long ord = ordinals.nextOrd();
+                    long bucketOrd = ordinalToBucket.get(ord);
+                    if (bucketOrd < 0) { // unlikely condition on a low-cardinality field
+                        final BytesRef bytes = bytesValues.getValueByOrd(ord);
+                        final int hash = bytesValues.currentValueHash();
+                        assert hash == bytes.hashCode();
+                        long bucketOrdinal = bucketOrds.find(bytes, hash);
+                        if (bucketDocCount(bucketOrdinal) != PRUNED_BUCKET) {
+                            collectBucketNoCounts(doc, bucketOrdinal);
+                        }
                     }
-                    ordinalToBucket.set(ord, bucketOrd);
+                    else{
+                        collectBucketNoCounts(doc, bucketOrd);
+                    }
+                }            
+            } else {
+                //First pass - create buckets and delegate to child aggs
+                for (int i = 0; i < valuesCount; ++i) {
+                    final long ord = ordinals.nextOrd();
+                    long bucketOrd = ordinalToBucket.get(ord);
+                    if (bucketOrd < 0) { // unlikely condition on a low-cardinality field
+                        final BytesRef bytes = bytesValues.getValueByOrd(ord);
+                        final int hash = bytesValues.currentValueHash();
+                        assert hash == bytes.hashCode();
+                        bucketOrd = bucketOrds.add(bytes, hash);
+                        if (bucketOrd < 0) { // already seen in another segment
+                            bucketOrd = - 1 - bucketOrd;
+                        }
+                        ordinalToBucket.set(ord, bucketOrd);
+                    }
+    
+                    collectBucket(doc, bucketOrd);
                 }
-
-                collectBucket(doc, bucketOrd);
             }
         }
 

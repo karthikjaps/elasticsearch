@@ -54,7 +54,7 @@ public class MaxAggregator extends MetricsAggregator.SingleValue {
 
     @Override
     public boolean shouldCollect() {
-        return valuesSource != null;
+        return (passNumber==0) && (valuesSource != null);
     }
 
     @Override
@@ -64,6 +64,8 @@ public class MaxAggregator extends MetricsAggregator.SingleValue {
 
     @Override
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
+        assert passNumber == 0;
+        
         if (owningBucketOrdinal >= maxes.size()) {
             long from = maxes.size();
             maxes = bigArrays.grow(maxes, owningBucketOrdinal + 1);

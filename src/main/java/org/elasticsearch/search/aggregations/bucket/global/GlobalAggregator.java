@@ -41,7 +41,11 @@ public class GlobalAggregator extends SingleBucketAggregator {
     @Override
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
         assert owningBucketOrdinal == 0 : "global aggregator can only be a top level aggregator";
-        collectBucket(doc, owningBucketOrdinal);
+        if (passNumber == 0) {
+            collectBucket(doc, owningBucketOrdinal);
+        } else {
+            collectBucketNoCounts(doc, owningBucketOrdinal);
+        }
     }
 
     @Override

@@ -20,9 +20,12 @@ package org.elasticsearch.search.aggregations;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.util.WAH8DocIdSet;
+import org.apache.lucene.util.WAH8DocIdSet.Builder;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.lease.Releasables;
@@ -51,6 +54,7 @@ public class AggregationPhase implements SearchPhase {
     private final AggregationParseElement parseElement;
 
     private final AggregationBinaryParseElement binaryParseElement;
+    public static final int MAX_REPLAYS=10;
 
     @Inject
     public AggregationPhase(AggregationParseElement parseElement, AggregationBinaryParseElement binaryParseElement) {
@@ -77,6 +81,7 @@ public class AggregationPhase implements SearchPhase {
             context.aggregations().aggregationContext(aggregationContext);
 
             List<Aggregator> collectors = new ArrayList<Aggregator>();
+            boolean matchReplaysRequired=false;
             Aggregator[] aggregators = context.aggregations().factories().createTopLevelAggregators(aggregationContext);
             for (int i = 0; i < aggregators.length; i++) {
                 if (!(aggregators[i] instanceof GlobalAggregator)) {
@@ -84,11 +89,20 @@ public class AggregationPhase implements SearchPhase {
                     if (aggregator.shouldCollect()) {
                         collectors.add(aggregator);
                     }
+                    if(aggregator.requiresMatchReplays()){
+                        matchReplaysRequired=true;
+                    }
+                    
                 }
             }
             context.aggregations().aggregators(aggregators);
             if (!collectors.isEmpty()) {
-                context.searcher().addMainQueryCollector(new AggregationsCollector(collectors, aggregationContext));
+                if (matchReplaysRequired) {
+                    aggregationContext.setReplayableMatches(new ReplayableAggregationsCollector(collectors, aggregationContext));
+                    context.searcher().addMainQueryCollector(aggregationContext.getReplayableMatches());
+                } else {
+                    context.searcher().addMainQueryCollector(new AggregationsCollector(collectors, aggregationContext));
+                }
             }
         }
     }
@@ -107,16 +121,29 @@ public class AggregationPhase implements SearchPhase {
         Aggregator[] aggregators = context.aggregations().aggregators();
         boolean success = false;
         try {
+            boolean globalMatchReplaysRequired=false;
             List<Aggregator> globals = new ArrayList<Aggregator>();
             for (int i = 0; i < aggregators.length; i++) {
                 if (aggregators[i] instanceof GlobalAggregator) {
                     globals.add(aggregators[i]);
+                    if(aggregators[i].requiresMatchReplays()){
+                        globalMatchReplaysRequired=true;
+                    }
                 }
             }
 
+            ReplayableAggregationsCollector globalAggsReplayer=null;
+            ReplayableAggregationsCollector matchAggsReplayer=context.aggregations().aggregationContext().getReplayableMatches();
+            
             // optimize the global collector based execution
             if (!globals.isEmpty()) {
-                AggregationsCollector collector = new AggregationsCollector(globals, context.aggregations().aggregationContext());
+                AggregationsCollector collector;
+                if (globalMatchReplaysRequired) {
+                    globalAggsReplayer = new ReplayableAggregationsCollector(globals, context.aggregations().aggregationContext());
+                    collector = globalAggsReplayer;
+                } else {
+                    collector = new AggregationsCollector(globals, context.aggregations().aggregationContext());
+                }
                 Query query = new XConstantScoreQuery(Queries.MATCH_ALL_FILTER);
                 Filter searchFilter = context.searchFilter(context.types());
                 if (searchFilter != null) {
@@ -130,6 +157,11 @@ public class AggregationPhase implements SearchPhase {
                 collector.postCollection();
             }
 
+            //If required, replay match streams for any aggregations that are built using multiple passes over the content
+            replayAggsStream(context, globalAggsReplayer);
+            replayAggsStream(context, matchAggsReplayer);
+            
+            
             List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(aggregators.length);
             for (Aggregator aggregator : context.aggregations().aggregators()) {
                 aggregations.add(aggregator.buildAggregation(0));
@@ -142,11 +174,40 @@ public class AggregationPhase implements SearchPhase {
 
     }
 
+    private void replayAggsStream(SearchContext context, ReplayableAggregationsCollector replayableDocAggsSet) {
+        if(replayableDocAggsSet!=null){
+            //For safety's sake we don't try replay content beyond 10 attempts...
+            //TODO add query timeout checks here.... 
+            for (int replayCount = 0; replayCount <= MAX_REPLAYS; replayCount++) {
+                if(replayCount==MAX_REPLAYS){
+                    throw new QueryPhaseExecutionException(context, "Failed to execute global aggregators as too many passes",null);
+                }
+                
+                List<Aggregator> pendingAggregators = new ArrayList<Aggregator>();
+                for (Aggregator aggregator : replayableDocAggsSet.collectors) {
+                    if (aggregator.shouldCollect()) {
+                        pendingAggregators.add(aggregator);
+                    }
+                }
+                if (pendingAggregators.size() > 0) {
+                    replayableDocAggsSet.setRemainingAggregators(pendingAggregators.toArray(new Aggregator[pendingAggregators.size()]));
+                    try {
+                        replayableDocAggsSet.replayContent();
+                    } catch (Exception e) {
+                        throw new QueryPhaseExecutionException(context, "Failed to execute global aggregators", e);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
 
     public static class AggregationsCollector extends XCollector {
 
         private final AggregationContext aggregationContext;
-        private final Aggregator[] collectors;
+        protected Aggregator[] collectors;
 
         public AggregationsCollector(Collection<Aggregator> collectors, AggregationContext aggregationContext) {
             this.collectors = collectors.toArray(new Aggregator[collectors.size()]);
@@ -174,6 +235,7 @@ public class AggregationPhase implements SearchPhase {
         public boolean acceptsDocsOutOfOrder() {
             return true;
         }
+        
 
         @Override
         public void postCollection() {
@@ -182,4 +244,86 @@ public class AggregationPhase implements SearchPhase {
             }
         }
     }
+    
+    public static class ReplayableAggregationsCollector extends AggregationsCollector {
+
+        public ReplayableAggregationsCollector(Collection<Aggregator> collectors, AggregationContext aggregationContext) {
+            super(collectors, aggregationContext);
+        }
+        
+        public void setRemainingAggregators(Aggregator[] pendingAggregations) {
+            collectors=pendingAggregations;
+        }
+
+        public void replayContent() throws IOException {
+            for (StoredMatches storedMatch : storedMatches) {
+                super.setNextReader(storedMatch.reader);
+                WAH8DocIdSet docSet = storedMatch.wah8DocIdSet;
+                DocIdSetIterator disi = docSet.iterator();
+                if(disi!=null){
+                    while(true){
+                        int doc = disi.nextDoc();
+                        if(doc==DocIdSetIterator.NO_MORE_DOCS){
+                            break;
+                        }
+                        super.collect(doc);
+                    }
+                }
+            }
+            super.postCollection();
+        }
+        
+        private List<StoredMatches> storedMatches = new ArrayList<StoredMatches>();
+        private Builder currentReaderMatches;
+        private AtomicReaderContext currentReader;
+        
+        static class StoredMatches{
+            AtomicReaderContext reader;
+            WAH8DocIdSet wah8DocIdSet;
+            public StoredMatches( AtomicReaderContext reader,WAH8DocIdSet wah8DocIdSet) {
+                this.wah8DocIdSet = wah8DocIdSet;
+                this.reader = reader;
+            }
+        }        
+        
+        @Override
+        public void setNextReader(AtomicReaderContext reader) throws IOException {
+            stowMatches();
+            currentReader=reader;
+            currentReaderMatches = new WAH8DocIdSet.Builder();
+            currentReaderMatches.setIndexInterval(Integer.MAX_VALUE);
+            super.setNextReader(reader);
+        }
+        
+        private void stowMatches() {
+            if (currentReaderMatches != null) {
+                // TODO could consider dropping state to disk - would be entirely
+                // serial access so poss. cheap?
+                storedMatches.add(new StoredMatches(currentReader, currentReaderMatches.build()));
+                currentReaderMatches=null;
+            }
+        }    
+
+        @Override
+        public void postCollection() {
+            super.postCollection();
+            stowMatches();
+        }
+
+        
+        @Override
+        public boolean acceptsDocsOutOfOrder() {
+            return false;
+        }        
+        
+        @Override
+        public void collect(int doc) throws IOException {            
+            currentReaderMatches.add(doc);
+            super.collect(doc);
+        }        
+        
+        
+    }
+    
+    
 }

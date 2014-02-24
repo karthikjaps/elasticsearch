@@ -28,7 +28,7 @@ import org.elasticsearch.search.aggregations.support.AggregationContext;
 public abstract class MetricsAggregator extends Aggregator {
 
     private MetricsAggregator(String name, long estimatedBucketsCount, AggregationContext context, Aggregator parent) {
-        super(name, BucketAggregationMode.MULTI_BUCKETS, AggregatorFactories.EMPTY, estimatedBucketsCount, context, parent);
+        super(name, BucketAggregationMode.MULTI_BUCKETS, AggregatorFactories.EMPTY, estimatedBucketsCount, context, parent, ExecutionMode.SINGLE_PASS);
     }
 
     public static abstract class SingleValue extends MetricsAggregator {

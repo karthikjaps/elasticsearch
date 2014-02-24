@@ -29,12 +29,7 @@ public abstract class SingleBucketAggregator extends BucketsAggregator {
 
     protected SingleBucketAggregator(String name, AggregatorFactories factories,
                                      AggregationContext aggregationContext, Aggregator parent) {
-        super(name, BucketAggregationMode.MULTI_BUCKETS, factories, parent == null ? 1 : parent.estimatedBucketCount(), aggregationContext, parent);
+        super(name, BucketAggregationMode.MULTI_BUCKETS, factories, parent == null ? 1 : parent.estimatedBucketCount(), 
+                aggregationContext, parent, ExecutionMode.SINGLE_PASS);
     }
-
-    @Override
-    public boolean shouldCollect() {
-        return true;
-    }
-
 }

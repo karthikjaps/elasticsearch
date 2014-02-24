@@ -36,7 +36,7 @@ public class UnmappedTermsAggregator extends Aggregator {
     private final long minDocCount;
 
     public UnmappedTermsAggregator(String name, InternalOrder order, int requiredSize, long minDocCount, AggregationContext aggregationContext, Aggregator parent) {
-        super(name, BucketAggregationMode.PER_BUCKET, AggregatorFactories.EMPTY, 0, aggregationContext, parent);
+        super(name, BucketAggregationMode.PER_BUCKET, AggregatorFactories.EMPTY, 0, aggregationContext, parent, ExecutionMode.SINGLE_PASS);
         this.order = order;
         this.requiredSize = requiredSize;
         this.minDocCount = minDocCount;

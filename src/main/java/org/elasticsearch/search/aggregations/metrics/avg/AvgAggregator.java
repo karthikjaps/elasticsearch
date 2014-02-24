@@ -56,7 +56,7 @@ public class AvgAggregator extends MetricsAggregator.SingleValue {
 
     @Override
     public boolean shouldCollect() {
-        return valuesSource != null;
+        return (passNumber==0) && (valuesSource != null);
     }
 
     @Override
@@ -66,6 +66,7 @@ public class AvgAggregator extends MetricsAggregator.SingleValue {
 
     @Override
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
+        assert passNumber == 0;
         counts = bigArrays.grow(counts, owningBucketOrdinal + 1);
         sums = bigArrays.grow(sums, owningBucketOrdinal + 1);
 

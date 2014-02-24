@@ -58,7 +58,11 @@ public class FilterAggregator extends SingleBucketAggregator {
     @Override
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
         if (bits.get(doc)) {
-            collectBucket(doc, owningBucketOrdinal);
+            if (passNumber == 0) {
+                collectBucket(doc, owningBucketOrdinal);
+            } else {
+                collectBucketNoCounts(doc, owningBucketOrdinal);
+            }
         }
     }
 

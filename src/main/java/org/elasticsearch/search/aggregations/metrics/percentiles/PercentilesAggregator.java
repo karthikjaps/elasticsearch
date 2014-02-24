@@ -52,7 +52,7 @@ public class PercentilesAggregator extends MetricsAggregator.MultiValue {
 
     @Override
     public boolean shouldCollect() {
-        return valuesSource != null;
+        return (passNumber == 0) && (valuesSource != null);
     }
 
     @Override
@@ -62,6 +62,7 @@ public class PercentilesAggregator extends MetricsAggregator.MultiValue {
 
     @Override
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
+        assert passNumber == 0;
         final int valueCount = values.setDocument(doc);
         for (int i = 0; i < valueCount; i++) {
             estimator.offer(values.nextValue(), owningBucketOrdinal);

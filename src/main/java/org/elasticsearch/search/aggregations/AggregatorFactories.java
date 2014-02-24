@@ -71,7 +71,8 @@ public class AggregatorFactories {
                 continue;
             }
             // the aggregator doesn't support multiple ordinals, let's wrap it so that it does.
-            aggregators[i] = new Aggregator(first.name(), BucketAggregationMode.MULTI_BUCKETS, AggregatorFactories.EMPTY, 1, first.context(), first.parent()) {
+            aggregators[i] = new Aggregator(first.name(), BucketAggregationMode.MULTI_BUCKETS, AggregatorFactories.EMPTY, 1, first.context(),
+                    first.parent(), first.executionMode) {
 
                 ObjectArray<Aggregator> aggregators;
 
@@ -82,9 +83,6 @@ public class AggregatorFactories {
                     long arraySize = estimatedBucketsCount > 0 ?  estimatedBucketsCount : 1;
                     aggregators = bigArrays.newObjectArray(arraySize);
                     aggregators.set(0, first);
-                    for (long i = 1; i < arraySize; ++i) {
-                        aggregators.set(i, createAndRegisterContextAware(parent.context(), factory, parent, estimatedBucketsCount));
-                    }
                 }
 
                 @Override

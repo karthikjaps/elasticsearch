@@ -95,7 +95,8 @@ public class RangeAggregator extends BucketsAggregator {
                            AggregationContext aggregationContext,
                            Aggregator parent) {
 
-        super(name, BucketAggregationMode.MULTI_BUCKETS, factories, ranges.size() * (parent == null ? 1 : parent.estimatedBucketCount()), aggregationContext, parent);
+        super(name, BucketAggregationMode.MULTI_BUCKETS, factories, ranges.size() * (parent == null ? 1 : parent.estimatedBucketCount()), 
+                aggregationContext, parent, ExecutionMode.SINGLE_PASS);
         assert valuesSource != null;
         this.valuesSource = valuesSource;
         this.keyed = keyed;
@@ -112,11 +113,6 @@ public class RangeAggregator extends BucketsAggregator {
             maxTo[i] = Math.max(this.ranges[i].to,maxTo[i-1]);
         }
 
-    }
-
-    @Override
-    public boolean shouldCollect() {
-        return true;
     }
 
     @Override
@@ -179,7 +175,12 @@ public class RangeAggregator extends BucketsAggregator {
 
         for (int i = startLo; i <= endHi; ++i) {
             if (ranges[i].matches(value)) {
-                collectBucket(doc, subBucketOrdinal(owningBucketOrdinal, i));
+                if (passNumber > 0) {
+                    collectBucketNoCounts(doc, subBucketOrdinal(owningBucketOrdinal, i));
+                } else {
+                    collectBucket(doc, subBucketOrdinal(owningBucketOrdinal, i));
+                }
+
             }
         }
 
@@ -254,7 +255,7 @@ public class RangeAggregator extends BucketsAggregator {
                         Aggregator parent,
                         InternalRange.Factory factory) {
 
-            super(name, BucketAggregationMode.MULTI_BUCKETS, AggregatorFactories.EMPTY, 0, aggregationContext, parent);
+            super(name, BucketAggregationMode.MULTI_BUCKETS, AggregatorFactories.EMPTY, 0, aggregationContext, parent, ExecutionMode.SINGLE_PASS);
             this.ranges = ranges;
             for (Range range : this.ranges) {
                 range.process(parser, context);

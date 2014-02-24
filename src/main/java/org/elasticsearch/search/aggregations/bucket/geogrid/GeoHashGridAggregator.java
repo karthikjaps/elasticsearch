@@ -20,12 +20,12 @@ package org.elasticsearch.search.aggregations.bucket.geogrid;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.common.lease.Releasables;
+import org.elasticsearch.common.util.LongHash;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
-import org.elasticsearch.common.util.LongHash;
 import org.elasticsearch.search.aggregations.support.AggregationContext;
 import org.elasticsearch.search.aggregations.support.numeric.NumericValuesSource;
 
@@ -47,19 +47,15 @@ public class GeoHashGridAggregator extends BucketsAggregator {
     private final NumericValuesSource valuesSource;
     private final LongHash bucketOrds;
     private LongValues values;
+    
 
     public GeoHashGridAggregator(String name, AggregatorFactories factories, NumericValuesSource valuesSource,
-                              int requiredSize, int shardSize, AggregationContext aggregationContext, Aggregator parent) {
-        super(name, BucketAggregationMode.PER_BUCKET, factories, INITIAL_CAPACITY, aggregationContext, parent);
+                              int requiredSize, int shardSize, AggregationContext aggregationContext, Aggregator parent, ExecutionMode executionMode) {
+        super(name, BucketAggregationMode.PER_BUCKET, factories, INITIAL_CAPACITY, aggregationContext, parent, executionMode);
         this.valuesSource = valuesSource;
         this.requiredSize = requiredSize;
         this.shardSize = shardSize;
         bucketOrds = new LongHash(INITIAL_CAPACITY, aggregationContext.bigArrays());
-    }
-
-    @Override
-    public boolean shouldCollect() {
-        return true;
     }
 
     @Override
@@ -72,13 +68,24 @@ public class GeoHashGridAggregator extends BucketsAggregator {
         assert owningBucketOrdinal == 0;
         final int valuesCount = values.setDocument(doc);
 
-        for (int i = 0; i < valuesCount; ++i) {
-            final long val = values.nextValue();
-            long bucketOrdinal = bucketOrds.add(val);
-            if (bucketOrdinal < 0) { // already seen
-                bucketOrdinal = - 1 - bucketOrdinal;
+        if(passNumber>0) {
+            //Repeat pass - only delegate to child aggs for buckets that survived first pass pruning
+            for (int i = 0; i < valuesCount; ++i) {
+                final long val = values.nextValue();
+                long bucketOrdinal = bucketOrds.find(val);                
+                if (bucketDocCount(bucketOrdinal) != PRUNED_BUCKET) {
+                    collectBucketNoCounts(doc, bucketOrdinal);
+                }
             }
-            collectBucket(doc, bucketOrdinal);
+        } else {
+            for (int i = 0; i < valuesCount; ++i) {
+                final long val = values.nextValue();
+                long bucketOrdinal = bucketOrds.add(val);
+                if (bucketOrdinal < 0) { // already seen
+                    bucketOrdinal = - 1 - bucketOrdinal;
+                }
+                collectBucket(doc, bucketOrdinal);
+            }            
         }
     }
 
@@ -92,13 +99,21 @@ public class GeoHashGridAggregator extends BucketsAggregator {
         }
 
     }
+    
+    
 
+    InternalGeoHashGrid.BucketPriorityQueue pruned;
+    
     @Override
-    public InternalGeoHashGrid buildAggregation(long owningBucketOrdinal) {
-        assert owningBucketOrdinal == 0;
+    protected void doPostCollection() {
+        super.doPostCollection();
+        
+        if(passNumber > 0){
+            return;  // Already pruned
+        }
         final int size = (int) Math.min(bucketOrds.size(), shardSize);
 
-        InternalGeoHashGrid.BucketPriorityQueue ordered = new InternalGeoHashGrid.BucketPriorityQueue(size);
+        pruned = new InternalGeoHashGrid.BucketPriorityQueue(size);
         OrdinalBucket spare = null;
         for (long i = 0; i < bucketOrds.capacity(); ++i) {
             final long ord = bucketOrds.id(i);
@@ -113,15 +128,31 @@ public class GeoHashGridAggregator extends BucketsAggregator {
             spare.geohashAsLong = bucketOrds.key(i);
             spare.docCount = bucketDocCount(ord);
             spare.bucketOrd = ord;
-            spare = (OrdinalBucket) ordered.insertWithOverflow(spare);
+            spare = (OrdinalBucket) pruned.insertWithOverflow(spare);
+            if (spare != null) {
+                //Pick up buckets that don't make the final cut and mark the ordinal as pruned.
+                clearDocCount(spare.bucketOrd);
+            }            
         }
+        
+    }
 
-        final InternalGeoHashGrid.Bucket[] list = new InternalGeoHashGrid.Bucket[ordered.size()];
-        for (int i = ordered.size() - 1; i >= 0; --i) {
-            final OrdinalBucket bucket = (OrdinalBucket) ordered.pop();
-            bucket.aggregations = bucketAggregations(bucket.bucketOrd);
-            list[i] = bucket;
+    @Override
+    public InternalGeoHashGrid buildAggregation(long owningBucketOrdinal) {
+        assert owningBucketOrdinal == 0;
+
+        final InternalGeoHashGrid.Bucket[] list;
+        if (pruned == null) {
+            list = new InternalGeoHashGrid.Bucket[0];
+        } else {
+            list = new InternalGeoHashGrid.Bucket[pruned.size()];
+            for (int i = pruned.size() - 1; i >= 0; --i) {
+                final OrdinalBucket bucket = (OrdinalBucket) pruned.pop();
+                bucket.aggregations = bucketAggregations(bucket.bucketOrd);
+                list[i] = bucket;
+            }
         }
+        
         return new InternalGeoHashGrid(name, requiredSize, Arrays.asList(list));
     }
 
@@ -140,7 +171,7 @@ public class GeoHashGridAggregator extends BucketsAggregator {
         private int requiredSize;
         public Unmapped(String name, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
             
-            super(name, BucketAggregationMode.PER_BUCKET, AggregatorFactories.EMPTY, 0, aggregationContext, parent);
+            super(name, BucketAggregationMode.PER_BUCKET, AggregatorFactories.EMPTY, 0, aggregationContext, parent, ExecutionMode.SINGLE_PASS);
             this.requiredSize=requiredSize;
         }
 

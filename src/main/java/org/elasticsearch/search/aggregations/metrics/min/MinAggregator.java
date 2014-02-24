@@ -54,7 +54,7 @@ public class MinAggregator extends MetricsAggregator.SingleValue {
 
     @Override
     public boolean shouldCollect() {
-        return valuesSource != null;
+        return (passNumber==0) && (valuesSource != null);
     }
 
     @Override
@@ -64,6 +64,8 @@ public class MinAggregator extends MetricsAggregator.SingleValue {
 
     @Override
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
+        assert passNumber == 0;
+
         if (values.setDocument(doc) == 0) {
             return;
         }

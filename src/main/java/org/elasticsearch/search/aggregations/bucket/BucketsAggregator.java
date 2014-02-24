@@ -38,12 +38,20 @@ public abstract class BucketsAggregator extends Aggregator {
 
     private LongArray docCounts;
 
-    private final Aggregator[] collectableSugAggregators;
+    private Aggregator[] collectableSugAggregators;
+    
+    protected static final int PRUNED_BUCKET=-1;
+
 
     public BucketsAggregator(String name, BucketAggregationMode bucketAggregationMode, AggregatorFactories factories,
-                             long estimatedBucketsCount, AggregationContext context, Aggregator parent) {
-        super(name, bucketAggregationMode, factories, estimatedBucketsCount, context, parent);
+                             long estimatedBucketsCount, AggregationContext context, Aggregator parent, ExecutionMode executionMode ) {
+        super(name, bucketAggregationMode, factories, estimatedBucketsCount, context, parent, executionMode);
         docCounts = bigArrays.newLongArray(estimatedBucketsCount, true);
+        prepareSubAggregators();
+    }
+
+    @Override
+    protected void prepareSubAggregators() {
         List<Aggregator> collectables = new ArrayList<Aggregator>(subAggregators.length);
         for (int i = 0; i < subAggregators.length; i++) {
             if (subAggregators[i].shouldCollect()) {
@@ -63,7 +71,17 @@ public abstract class BucketsAggregator extends Aggregator {
             collectableSugAggregators[i].collect(doc, bucketOrd);
         }
     }
-
+    
+    /**
+     * Utility method to mark a bucket as pruned and so to be ignored on repeat passes
+     * @param bucketOrd
+     * @throws IOException
+     */
+    protected final void clearDocCount(long bucketOrd)  {
+        docCounts = bigArrays.grow(docCounts, bucketOrd + 1);
+        docCounts.set(bucketOrd, PRUNED_BUCKET);
+    }
+    
     /**
      * Utility method to collect the given doc in the given bucket but not to update the doc counts of the bucket
      */
@@ -95,6 +113,7 @@ public abstract class BucketsAggregator extends Aggregator {
             return docCounts.get(bucketOrd);
         }
     }
+
 
     /**
      * Utility method to build the aggregations of the given bucket (identified by the bucket ordinal)
