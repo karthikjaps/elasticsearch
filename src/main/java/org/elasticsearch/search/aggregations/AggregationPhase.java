@@ -54,7 +54,7 @@ public class AggregationPhase implements SearchPhase {
     private final AggregationParseElement parseElement;
 
     private final AggregationBinaryParseElement binaryParseElement;
-    public static final int MAX_REPLAYS=10;
+    public static final int MAX_REPLAYS = 10;
 
     @Inject
     public AggregationPhase(AggregationParseElement parseElement, AggregationBinaryParseElement binaryParseElement) {
@@ -81,7 +81,7 @@ public class AggregationPhase implements SearchPhase {
             context.aggregations().aggregationContext(aggregationContext);
 
             List<Aggregator> collectors = new ArrayList<Aggregator>();
-            boolean matchReplaysRequired=false;
+            boolean matchReplaysRequired = false;
             Aggregator[] aggregators = context.aggregations().factories().createTopLevelAggregators(aggregationContext);
             for (int i = 0; i < aggregators.length; i++) {
                 if (!(aggregators[i] instanceof GlobalAggregator)) {
@@ -89,10 +89,9 @@ public class AggregationPhase implements SearchPhase {
                     if (aggregator.shouldCollect()) {
                         collectors.add(aggregator);
                     }
-                    if(aggregator.requiresMatchReplays()){
-                        matchReplaysRequired=true;
+                    if (aggregator.requiresMatchReplays()) {
+                        matchReplaysRequired = true;
                     }
-                    
                 }
             }
             context.aggregations().aggregators(aggregators);
@@ -121,20 +120,21 @@ public class AggregationPhase implements SearchPhase {
         Aggregator[] aggregators = context.aggregations().aggregators();
         boolean success = false;
         try {
-            boolean globalMatchReplaysRequired=false;
+
+            boolean globalMatchReplaysRequired = false;
             List<Aggregator> globals = new ArrayList<Aggregator>();
             for (int i = 0; i < aggregators.length; i++) {
                 if (aggregators[i] instanceof GlobalAggregator) {
                     globals.add(aggregators[i]);
-                    if(aggregators[i].requiresMatchReplays()){
-                        globalMatchReplaysRequired=true;
+                    if (aggregators[i].requiresMatchReplays()) {
+                        globalMatchReplaysRequired = true;
                     }
                 }
             }
 
-            ReplayableAggregationsCollector globalAggsReplayer=null;
-            ReplayableAggregationsCollector matchAggsReplayer=context.aggregations().aggregationContext().getReplayableMatches();
-            
+            ReplayableAggregationsCollector globalAggsReplayer = null;
+            ReplayableAggregationsCollector matchAggsReplayer = context.aggregations().aggregationContext().getReplayableMatches();
+
             // optimize the global collector based execution
             if (!globals.isEmpty()) {
                 AggregationsCollector collector;
@@ -160,29 +160,30 @@ public class AggregationPhase implements SearchPhase {
             //If required, replay match streams for any aggregations that are built using multiple passes over the content
             replayAggsStream(context, globalAggsReplayer);
             replayAggsStream(context, matchAggsReplayer);
-            
-            
+
+
             List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(aggregators.length);
             for (Aggregator aggregator : context.aggregations().aggregators()) {
                 aggregations.add(aggregator.buildAggregation(0));
             }
             context.queryResult().aggregations(new InternalAggregations(aggregations));
             success = true;
+
         } finally {
             Releasables.release(success, aggregators);
         }
 
     }
 
-    private void replayAggsStream(SearchContext context, ReplayableAggregationsCollector replayableDocAggsSet) {
-        if(replayableDocAggsSet!=null){
+    private static void replayAggsStream(SearchContext context, ReplayableAggregationsCollector replayableDocAggsSet) {
+        if (replayableDocAggsSet != null) {
             //For safety's sake we don't try replay content beyond 10 attempts...
             //TODO add query timeout checks here.... 
             for (int replayCount = 0; replayCount <= MAX_REPLAYS; replayCount++) {
-                if(replayCount==MAX_REPLAYS){
-                    throw new QueryPhaseExecutionException(context, "Failed to execute global aggregators as too many passes",null);
+                if (replayCount == MAX_REPLAYS) {
+                    throw new QueryPhaseExecutionException(context, "Failed to execute global aggregators as too many passes", null);
                 }
-                
+
                 List<Aggregator> pendingAggregators = new ArrayList<Aggregator>();
                 for (Aggregator aggregator : replayableDocAggsSet.collectors) {
                     if (aggregator.shouldCollect()) {
@@ -235,7 +236,7 @@ public class AggregationPhase implements SearchPhase {
         public boolean acceptsDocsOutOfOrder() {
             return true;
         }
-        
+
 
         @Override
         public void postCollection() {
@@ -244,26 +245,41 @@ public class AggregationPhase implements SearchPhase {
             }
         }
     }
-    
+
     public static class ReplayableAggregationsCollector extends AggregationsCollector {
+
+        static class AtomicMatches {
+
+            AtomicReaderContext reader;
+            WAH8DocIdSet docIdSet;
+
+            public AtomicMatches(AtomicReaderContext reader, WAH8DocIdSet docIdSet) {
+                this.docIdSet = docIdSet;
+                this.reader = reader;
+            }
+        }
+
+        private List<AtomicMatches> atomicMatches = new ArrayList<AtomicMatches>();
+        private Builder currentAtomicMatches;
+        private AtomicReaderContext currentReader;
 
         public ReplayableAggregationsCollector(Collection<Aggregator> collectors, AggregationContext aggregationContext) {
             super(collectors, aggregationContext);
         }
-        
+
         public void setRemainingAggregators(Aggregator[] pendingAggregations) {
-            collectors=pendingAggregations;
+            collectors = pendingAggregations;
         }
 
         public void replayContent() throws IOException {
-            for (StoredMatches storedMatch : storedMatches) {
-                super.setNextReader(storedMatch.reader);
-                WAH8DocIdSet docSet = storedMatch.wah8DocIdSet;
+            for (AtomicMatches matches : atomicMatches) {
+                super.setNextReader(matches.reader);
+                WAH8DocIdSet docSet = matches.docIdSet;
                 DocIdSetIterator disi = docSet.iterator();
-                if(disi!=null){
-                    while(true){
+                if (disi != null) {
+                    while (true) {
                         int doc = disi.nextDoc();
-                        if(doc==DocIdSetIterator.NO_MORE_DOCS){
+                        if (doc == DocIdSetIterator.NO_MORE_DOCS) {
                             break;
                         }
                         super.collect(doc);
@@ -272,37 +288,15 @@ public class AggregationPhase implements SearchPhase {
             }
             super.postCollection();
         }
-        
-        private List<StoredMatches> storedMatches = new ArrayList<StoredMatches>();
-        private Builder currentReaderMatches;
-        private AtomicReaderContext currentReader;
-        
-        static class StoredMatches{
-            AtomicReaderContext reader;
-            WAH8DocIdSet wah8DocIdSet;
-            public StoredMatches( AtomicReaderContext reader,WAH8DocIdSet wah8DocIdSet) {
-                this.wah8DocIdSet = wah8DocIdSet;
-                this.reader = reader;
-            }
-        }        
-        
+
         @Override
         public void setNextReader(AtomicReaderContext reader) throws IOException {
             stowMatches();
-            currentReader=reader;
-            currentReaderMatches = new WAH8DocIdSet.Builder();
-            currentReaderMatches.setIndexInterval(Integer.MAX_VALUE);
+            currentReader = reader;
+            currentAtomicMatches = new WAH8DocIdSet.Builder();
+            currentAtomicMatches.setIndexInterval(Integer.MAX_VALUE);
             super.setNextReader(reader);
         }
-        
-        private void stowMatches() {
-            if (currentReaderMatches != null) {
-                // TODO could consider dropping state to disk - would be entirely
-                // serial access so poss. cheap?
-                storedMatches.add(new StoredMatches(currentReader, currentReaderMatches.build()));
-                currentReaderMatches=null;
-            }
-        }    
 
         @Override
         public void postCollection() {
@@ -310,20 +304,29 @@ public class AggregationPhase implements SearchPhase {
             stowMatches();
         }
 
-        
+        private void stowMatches() {
+            if (currentAtomicMatches != null) {
+                // TODO could consider dropping state to disk - would be entirely
+                // serial access so poss. cheap?
+                atomicMatches.add(new AtomicMatches(currentReader, currentAtomicMatches.build()));
+                currentAtomicMatches = null;
+            }
+        }
+
+
         @Override
         public boolean acceptsDocsOutOfOrder() {
             return false;
-        }        
-        
+        }
+
         @Override
-        public void collect(int doc) throws IOException {            
-            currentReaderMatches.add(doc);
+        public void collect(int doc) throws IOException {
+            currentAtomicMatches.add(doc);
             super.collect(doc);
-        }        
-        
-        
+        }
+
+
     }
-    
-    
+
+
 }

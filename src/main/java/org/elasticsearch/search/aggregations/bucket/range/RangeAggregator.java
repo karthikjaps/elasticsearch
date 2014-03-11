@@ -109,7 +109,7 @@ public class RangeAggregator extends BucketsAggregator {
 
         maxTo = new double[this.ranges.length];
         maxTo[0] = this.ranges[0].to;
-        for (int i = 1; i < this.ranges.length; ++i) {
+        for (int i = 1; i < this.ranges.length; i++) {
             maxTo[i] = Math.max(this.ranges[i].to,maxTo[i-1]);
         }
 
@@ -173,7 +173,7 @@ public class RangeAggregator extends BucketsAggregator {
         assert startLo == lowBound || value >= maxTo[startLo - 1];
         assert endHi == ranges.length - 1 || value < ranges[endHi + 1].from;
 
-        for (int i = startLo; i <= endHi; ++i) {
+        for (int i = startLo; i <= endHi; i++) {
             if (ranges[i].matches(value)) {
                 if (passNumber > 0) {
                     collectBucketNoCounts(doc, subBucketOrdinal(owningBucketOrdinal, i));

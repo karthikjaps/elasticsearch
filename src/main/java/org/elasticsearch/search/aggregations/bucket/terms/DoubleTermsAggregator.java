@@ -47,7 +47,7 @@ public class DoubleTermsAggregator extends BucketsAggregator {
     private DoubleValues values;
 
     public DoubleTermsAggregator(String name, AggregatorFactories factories, NumericValuesSource valuesSource, long estimatedBucketCount,
-                               InternalOrder order, int requiredSize, int shardSize, long minDocCount, AggregationContext aggregationContext, Aggregator parent, ExecutionMode executionMode) {
+                                 InternalOrder order, int requiredSize, int shardSize, long minDocCount, AggregationContext aggregationContext, Aggregator parent, ExecutionMode executionMode) {
         super(name, BucketAggregationMode.PER_BUCKET, factories, estimatedBucketCount, aggregationContext, parent, executionMode);
         this.valuesSource = valuesSource;
         this.order = InternalOrder.validate(order, this);
@@ -66,35 +66,35 @@ public class DoubleTermsAggregator extends BucketsAggregator {
     public void collect(int doc, long owningBucketOrdinal) throws IOException {
         assert owningBucketOrdinal == 0;
         final int valuesCount = values.setDocument(doc);
-        if(passNumber > 0){
+        if (passNumber > 0) {
             for (int i = 0; i < valuesCount; ++i) {
                 final double val = values.nextValue();
                 final long bits = Double.doubleToRawLongBits(val);
                 long bucketOrdinal = bucketOrds.find(bits);
-                if (bucketDocCount(bucketOrdinal) != PRUNED_BUCKET) { 
+                if (bucketDocCount(bucketOrdinal) != PRUNED_BUCKET) {
                     collectBucketNoCounts(doc, bucketOrdinal);
                 }
-            }            
+            }
         } else {
             for (int i = 0; i < valuesCount; ++i) {
                 final double val = values.nextValue();
                 final long bits = Double.doubleToRawLongBits(val);
                 long bucketOrdinal = bucketOrds.add(bits);
                 if (bucketOrdinal < 0) { // already seen
-                    bucketOrdinal = - 1 - bucketOrdinal;
+                    bucketOrdinal = -1 - bucketOrdinal;
                 }
                 collectBucket(doc, bucketOrdinal);
-            }            
+            }
         }
 
     }
-    
+
     BucketPriorityQueue pruned;
 
     @Override
     protected void doPostCollection() {
         super.doPostCollection();
-        if(passNumber>0) {
+        if (passNumber > 0) {
             return;  //already pruned buckets
         }
 
@@ -133,7 +133,7 @@ public class DoubleTermsAggregator extends BucketsAggregator {
             if (spare != null) {
                 //Pick up buckets that don't make the final cut and mark the ordinal as pruned.
                 clearDocCount(spare.bucketOrd);
-            }            
+            }
         }
     }
 
@@ -145,7 +145,7 @@ public class DoubleTermsAggregator extends BucketsAggregator {
         assert owningBucketOrdinal == 0;
         final InternalTerms.Bucket[] list;
         if (pruned == null) {
-            list =new InternalTerms.Bucket[0];
+            list = new InternalTerms.Bucket[0];
         } else {
             list = new InternalTerms.Bucket[pruned.size()];
             for (int i = pruned.size() - 1; i >= 0; --i) {

@@ -18,6 +18,7 @@
  */
 package org.elasticsearch.search.aggregations.bucket.geogrid;
 
+import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -57,8 +58,7 @@ public class GeoHashGridParser implements Aggregator.Parser {
         int precision = DEFAULT_PRECISION;
         int requiredSize = DEFAULT_MAX_NUM_CELLS;
         int shardSize = -1;
-        ExecutionMode executionMode=ExecutionMode.SINGLE_PASS;
-        
+        ExecutionMode executionMode = ExecutionMode.SINGLE_PASS;
 
 
         XContentParser.Token token;
@@ -69,7 +69,7 @@ public class GeoHashGridParser implements Aggregator.Parser {
             } else if (token == XContentParser.Token.VALUE_STRING) {
                 if ("field".equals(currentFieldName)) {
                     field = parser.text();
-                } else if ("executionMode".equals(currentFieldName)) {
+                } else if (EXECUTION_MODE.match(currentFieldName)) {
                     executionMode = ExecutionMode.parse(parser.text());
                 }
             } else if (token == XContentParser.Token.VALUE_NUMBER) {
@@ -131,7 +131,7 @@ public class GeoHashGridParser implements Aggregator.Parser {
             this.precision = precision;
             this.requiredSize = requiredSize;
             this.shardSize = shardSize;
-            this.executionMode=executionMode;
+            this.executionMode = executionMode;
         }
 
         @Override

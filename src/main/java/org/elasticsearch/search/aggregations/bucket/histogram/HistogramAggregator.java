@@ -78,7 +78,7 @@ public class HistogramAggregator extends BucketsAggregator {
 
     @Override
     public boolean shouldCollect() {
-        return (super.shouldCollect()) && (valuesSource != null);
+        return valuesSource != null && super.shouldCollect();
     }
 
     @Override
@@ -91,7 +91,7 @@ public class HistogramAggregator extends BucketsAggregator {
         assert owningBucketOrdinal == 0;
         final int valuesCount = values.setDocument(doc);
 
-        if(passNumber>0) {
+        if (passNumber > 0) {
             long previousKey = Long.MIN_VALUE;
             for (int i = 0; i < valuesCount; ++i) {
                 long value = values.nextValue();
@@ -120,7 +120,7 @@ public class HistogramAggregator extends BucketsAggregator {
                 }
                 collectBucket(doc, bucketOrd);
                 previousKey = key;
-            }            
+            }
         }
     }
 

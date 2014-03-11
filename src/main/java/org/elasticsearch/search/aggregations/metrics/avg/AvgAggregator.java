@@ -56,7 +56,7 @@ public class AvgAggregator extends MetricsAggregator.SingleValue {
 
     @Override
     public boolean shouldCollect() {
-        return (passNumber==0) && (valuesSource != null);
+        return passNumber == 0 && valuesSource != null;
     }
 
     @Override

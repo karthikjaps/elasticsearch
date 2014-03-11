@@ -48,25 +48,25 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
          */
         MULTI_BUCKETS
     }
-    
+
     public enum ExecutionMode {
+
         /**
          * Creates buckets and delegates to child aggregators in a single pass over
          * the matching documents
          */
         SINGLE_PASS(new ParseField("single_pass")),
 
-
         /**
          * Creates buckets for all matching docs and then prunes to top-scoring buckets
-         * before a second pass over the data when child aggregators are called 
+         * before a second pass over the data when child aggregators are called
          * but only for the top-scoring docs
          */
         PRUNE_FIRST(new ParseField("prune_first"));
-        
+
         private final ParseField parseField;
 
-        ExecutionMode (ParseField parseField) {
+        ExecutionMode(ParseField parseField) {
             this.parseField = parseField;
         }
 
@@ -79,20 +79,17 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
         }
 
         public static ExecutionMode parse(String value, EnumSet<ParseField.Flag> flags) {
-            ExecutionMode[] values = ExecutionMode.values();
-            ExecutionMode type = null;
-            for (ExecutionMode t : values) {
-                if (t.parseField().match(value, flags)) {
-                    type = t;
-                    break;
+            ExecutionMode[] modes = ExecutionMode.values();
+            for (ExecutionMode mode : modes) {
+                if (mode.parseField.match(value, flags)) {
+                    return mode;
                 }
             }
-            if (type == null) {
-                throw new ElasticsearchParseException("No executionMode found for value: " + value);
-            }
-            return type;
+            throw new ElasticsearchParseException("No executionMode found for value [" + value + "]");
         }
-    }     
+    }
+
+    private static final Aggregator[] EMPTY_AGGREGATORS = new Aggregator[0];
 
     protected final String name;
     protected final Aggregator parent;
@@ -103,10 +100,10 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
 
     protected final BucketAggregationMode bucketAggregationMode;
     protected final AggregatorFactories factories;
-    protected Aggregator[] subAggregators=null;
+
+    protected Aggregator[] subAggregators = null;
     protected final ExecutionMode executionMode;
-    protected int passNumber=0;
-    private static final Aggregator[] EMPTY_AGGREGATORS = new Aggregator[0];
+    protected int passNumber = 0;
 
     private Map<String, Aggregator> subAggregatorbyName;
 
@@ -121,7 +118,8 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
      * @param parent                The parent aggregator (may be {@code null} for top level aggregators)
      * @param executionMode         The nature of execution as a parent (see {@link ExecutionMode} )
      */
-    protected Aggregator(String name, BucketAggregationMode bucketAggregationMode, AggregatorFactories factories, long estimatedBucketsCount, AggregationContext context, Aggregator parent, ExecutionMode executionMode) {
+    protected Aggregator(String name, BucketAggregationMode bucketAggregationMode, AggregatorFactories factories,
+                         long estimatedBucketsCount, AggregationContext context, Aggregator parent, ExecutionMode executionMode) {
         this.name = name;
         this.parent = parent;
         this.estimatedBucketCount = estimatedBucketsCount;
@@ -131,7 +129,7 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
         this.bucketAggregationMode = bucketAggregationMode;
         assert factories != null : "sub-factories provided to BucketAggregator must not be null, use AggragatorFactories.EMPTY instead";
         this.factories = factories;
-        this.executionMode=executionMode;
+        this.executionMode = executionMode;
         if (executionMode == ExecutionMode.PRUNE_FIRST) {
             //First pass we don't have any sub aggregators we need to call   
             this.subAggregators = EMPTY_AGGREGATORS;
@@ -144,38 +142,44 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
         } else {
             this.subAggregators = factories.createSubAggregators(this, estimatedBucketsCount);
         }
-        
+
     }
 
     /**
-     * @return  The name of the aggregation.
+     * @return The name of the aggregation.
      */
     public String name() {
         return name;
     }
-    
-    /** Return true if this or any child aggregation implements a PRUNE_FIRST {@link ExecutionMode}  
-     * which requires all content to be streamed to first find top buckets and then re-streamed 
-     * to populate child aggregations for only the buckets surviving round one.*/
+
+    /**
+     * @return  {@code true} if this or any child aggregation implements a {@link ExecutionMode#PRUNE_FIRST prune_first}
+     *          execution mode, which requires a first pass over all docs to first find the top buckets and then re-stream
+     *          to populate child aggregations for only the buckets surviving round one.
+     */
     public boolean requiresMatchReplays() {
-        if(executionMode == ExecutionMode.PRUNE_FIRST){
+        if (executionMode == ExecutionMode.PRUNE_FIRST) {
             return true;
         }
         for (int i = 0; i < subAggregators.length; i++) {
-            if(subAggregators[i].requiresMatchReplays()){
+            if (subAggregators[i].requiresMatchReplays()) {
                 return true;
             }
         }
         return false;
     }
-    
 
-    /** Return the estimated number of buckets. */
+
+    /**
+     * Return the estimated number of buckets.
+     */
     public final long estimatedBucketCount() {
         return estimatedBucketCount;
     }
 
-    /** Return the depth of this aggregator in the aggregation tree. */
+    /**
+     * Return the depth of this aggregator in the aggregation tree.
+     */
     public final int depth() {
         return depth;
     }
@@ -205,23 +209,23 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
     }
 
     /**
-     * @return  The current aggregation context.
+     * @return The current aggregation context.
      */
     public AggregationContext context() {
         return context;
     }
 
     /**
-     * @return  The bucket aggregation mode of this aggregator. This mode defines the nature in which the aggregation is executed
-     * @see     BucketAggregationMode
+     * @return The bucket aggregation mode of this aggregator. This mode defines the nature in which the aggregation is executed
+     * @see BucketAggregationMode
      */
     public BucketAggregationMode bucketAggregationMode() {
         return bucketAggregationMode;
     }
 
     /**
-     * @return  Whether this aggregator is in the state where it can collect documents. 
-     *          
+     * @return  Whether this aggregator is in the state where it can collect documents.
+     *          <p/>
      *          Aggregations can require multiple passes over the matching data if {@link ExecutionMode} is configured
      *          to defer computing child aggregations until a parent has pruned a potentially large set  of candidate buckets.
      *          A passNumber variable is used to count the number of passes that have occurred over the result set.
@@ -229,38 +233,37 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
      *          When passNumber is >zero aggs will only return true if any child aggs have yet to be instantiated and collect docs.
      *          In replay mode (passNumber>zero) any parent agg should just delegate collect calls on to child aggs without
      *          updating any doc counts or similar state they may have stored in the first pass.
-     *          
-     *          Some aggregators can do their aggregations without actually collecting documents, for example, an aggregator 
+     *          <p/>
+     *          Some aggregators can do their aggregations without actually collecting documents, for example, an aggregator
      *          that computes stats over unmapped fields doesn't need to collect
      *          anything as it knows to just return "empty" stats as the aggregation result.
-     *          
      */
     public boolean shouldCollect() {
-        boolean result=false;
-        if(passNumber == 0) { 
-            //All aggs collect at least once (the exception being unmapped which overrides this method)
-            result = true;
-        } else {
-            //Parent aggs will need to delegate collect calls to any deferred children
-            for (int i = 0; i < subAggregators.length; i++) {
-                if (subAggregators[i].shouldCollect()) {
-                    result=true;
-                    break;
-                }
+
+        if (passNumber == 0) {
+            // All aggs collect at least once (the exception being unmapped which overrides this method)
+            return true;
+        }
+
+        // Parent aggs will need to delegate collect calls to any deferred children
+        for (int i = 0; i < subAggregators.length; i++) {
+            if (subAggregators[i].shouldCollect()) {
+                return true;
             }
         }
-        return result;
-    }    
+
+        return false;
+    }
 
     /**
      * Called during the query phase, to collect & aggregate the given document.
      *
-     * @param doc                   The document to be collected/aggregated
-     * @param owningBucketOrdinal   The ordinal of the bucket this aggregator belongs to, assuming this aggregator is not a top level aggregator.
-     *                              Typically, aggregators with {@code #bucketAggregationMode} set to {@link BucketAggregationMode#MULTI_BUCKETS}
-     *                              will heavily depend on this ordinal. Other aggregators may or may not use it and can see this ordinal as just
-     *                              an extra information for the aggregation context. For top level aggregators, the ordinal will always be
-     *                              equal to 0.
+     * @param doc                 The document to be collected/aggregated
+     * @param owningBucketOrdinal The ordinal of the bucket this aggregator belongs to, assuming this aggregator is not a top level aggregator.
+     *                            Typically, aggregators with {@code #bucketAggregationMode} set to {@link BucketAggregationMode#MULTI_BUCKETS}
+     *                            will heavily depend on this ordinal. Other aggregators may or may not use it and can see this ordinal as just
+     *                            an extra information for the aggregation context. For top level aggregators, the ordinal will always be
+     *                            equal to 0.
      * @throws IOException
      */
     public abstract void collect(int doc, long owningBucketOrdinal) throws IOException;
@@ -273,25 +276,34 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
             subAggregators[i].postCollection();
         }
         doPostCollection();
-        if (passNumber==0) {
-            if (executionMode == ExecutionMode.PRUNE_FIRST) {
-                // This is the end of the first pass and this agg's content should now have been pruned
-                // in the doPostCollection method.
-                // Now set up child aggregators ready for subsequent "replay" passes over the content
-                this.subAggregators = factories.createSubAggregators(this, estimatedBucketCount);
-                prepareSubAggregators();
-            }
+        if (passNumber == 0 && executionMode == ExecutionMode.PRUNE_FIRST) {
+
+            // This is the end of the first pass and this agg's content should now have been pruned
+            // in the doPostCollection method.
+            // Now set up child aggregators ready for subsequent "replay" passes over the content
+
+            this.subAggregators = factories.createSubAggregators(this, estimatedBucketCount);
+            prepareSubAggregators();
         }
         passNumber++;
     }
 
-    /** Called when deferred sub aggregators need to be established ready for replays of content following
-     * a pruneFirst {@link ExecutionMode} to building the aggregations tree*/
-    protected void prepareSubAggregators() {
-        
+    /**
+     * Can be overriden by aggregator implementation to be called back when the collection phase ends.
+     */
+    protected void doPostCollection() {
     }
 
-    /** Called upon release of the aggregator. */
+    /**
+     * Called when deferred sub aggregators need to be established ready for replays of content following
+     * a pruneFirst {@link ExecutionMode} to building the aggregations tree
+     */
+    protected void prepareSubAggregators() {
+    }
+
+    /**
+     * Called upon release of the aggregator.
+     */
     @Override
     public boolean release() {
         boolean success = false;
@@ -304,17 +316,14 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
         return true;
     }
 
-    /** Release instance-specific data. */
-    protected void doRelease() {}
-
     /**
-     * Can be overriden by aggregator implementation to be called back when the collection phase ends.
+     * Release instance-specific data.
      */
-    protected void doPostCollection() {
+    protected void doRelease() {
     }
 
     /**
-     * @return  The aggregated & built aggregation
+     * @return The aggregated & built aggregation
      */
     public abstract InternalAggregation buildAggregation(long owningBucketOrdinal);
 
@@ -332,8 +341,10 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
      * Parses the aggregation request and creates the appropriate aggregator factory for it.
      *
      * @see {@link AggregatorFactory}
-    */
+     */
     public static interface Parser {
+
+        final static ParseField EXECUTION_MODE = new ParseField("execution_mode");
 
         /**
          * @return The aggregation type this parser is associated with.
@@ -344,11 +355,11 @@ public abstract class Aggregator implements Releasable, ReaderContextAware {
          * Returns the aggregator factory with which this parser is associated, may return {@code null} indicating the
          * aggregation should be skipped (e.g. when trying to aggregate on unmapped fields).
          *
-         * @param aggregationName   The name of the aggregation
-         * @param parser            The xcontent parser
-         * @param context           The search context
-         * @return                  The resolved aggregator factory or {@code null} in case the aggregation should be skipped
-         * @throws java.io.IOException      When parsing fails
+         * @param aggregationName The name of the aggregation
+         * @param parser          The xcontent parser
+         * @param context         The search context
+         * @return The resolved aggregator factory or {@code null} in case the aggregation should be skipped
+         * @throws java.io.IOException When parsing fails
          */
         AggregatorFactory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException;
 

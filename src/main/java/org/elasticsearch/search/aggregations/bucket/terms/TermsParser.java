@@ -92,7 +92,7 @@ public class TermsParser implements Aggregator.Parser {
                     scriptLang = parser.text();
                 } else if ("value_type".equals(currentFieldName) || "valueType".equals(currentFieldName)) {
                     valueType = Terms.ValueType.resolveType(parser.text());
-                } else if ("executionMode".equals(currentFieldName)) {
+                } else if (EXECUTION_MODE.match(currentFieldName)) {
                     executionMode = ExecutionMode.parse(parser.text());
                 } else if ("format".equals(currentFieldName)) {
                     format = parser.text();

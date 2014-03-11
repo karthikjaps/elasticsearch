@@ -68,39 +68,37 @@ public class LongTermsAggregator extends BucketsAggregator {
         assert owningBucketOrdinal == 0;
         final int valuesCount = values.setDocument(doc);
 
-        if(passNumber>0){
+        if (passNumber > 0) {
             //Repeat pass - only delegate to child aggs for buckets that survived first pass pruning
-            for (int i = 0; i < valuesCount; ++i) {
+            for (int i = 0; i < valuesCount; i++) {
                 final long val = values.nextValue();
-                long bucketOrdinal = bucketOrds.find(val);                
+                long bucketOrdinal = bucketOrds.find(val);
                 if (bucketDocCount(bucketOrdinal) != PRUNED_BUCKET) {
                     collectBucketNoCounts(doc, bucketOrdinal);
                 }
             }
         } else {
             //First pass - create buckets and delegate to child aggs
-            for (int i = 0; i < valuesCount; ++i) {
+            for (int i = 0; i < valuesCount; i++) {
                 final long val = values.nextValue();
                 long bucketOrdinal = bucketOrds.add(val);
                 if (bucketOrdinal < 0) { // already seen
-                    bucketOrdinal = - 1 - bucketOrdinal;
+                    bucketOrdinal = -1 - bucketOrdinal;
                 }
                 collectBucket(doc, bucketOrdinal);
             }
         }
     }
-    
-    
-    
+
 
     @Override
     protected void doPostCollection() {
         super.doPostCollection();
-        
-        if(passNumber>0){
+
+        if (passNumber > 0) {
             //We have already completed the bucket pruning in an earlier pass
             return;
-        }        
+        }
         //Prune the bucketOrds to the top matching ones
         if (minDocCount == 0 && (order != InternalOrder.COUNT_DESC || bucketOrds.size() < requiredSize)) {
             // we need to fill-in the blanks
@@ -137,15 +135,16 @@ public class LongTermsAggregator extends BucketsAggregator {
                 //Pick up buckets that don't make the final cut and mark the ordinal as pruned.
                 clearDocCount(spare.bucketOrd);
             }
-        }        
+        }
     }
+
     BucketPriorityQueue prunedBuckets;
 
 
     @Override
     public LongTerms buildAggregation(long owningBucketOrdinal) {
         assert owningBucketOrdinal == 0;
-        
+
         List<InternalTerms.Bucket> list;
         if (prunedBuckets == null) {
             list = new ArrayList<InternalTerms.Bucket>(0);
@@ -153,11 +152,11 @@ public class LongTermsAggregator extends BucketsAggregator {
             //Pruning already occurred in doPostCollection method - empty the PQ
             list = new ArrayList<InternalTerms.Bucket>(prunedBuckets.size());
             for (int i = prunedBuckets.size() - 1; i >= 0; --i) {
-                   final LongTerms.Bucket bucket = (LongTerms.Bucket) prunedBuckets.pop();
-                  list.add(new LongTerms.Bucket(bucket.term,  bucket.docCount, bucketAggregations(bucket.bucketOrd)));      
-            } 
-        }       
-        
+                final LongTerms.Bucket bucket = (LongTerms.Bucket) prunedBuckets.pop();
+                list.add(new LongTerms.Bucket(bucket.term, bucket.docCount, bucketAggregations(bucket.bucketOrd)));
+            }
+        }
+
         return new LongTerms(name, order, valuesSource.formatter(), requiredSize, minDocCount, list);
     }
 

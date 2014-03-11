@@ -35,7 +35,6 @@ import java.util.Collections;
 
 /**
  * Aggregates data expressed as GeoHash longs (for efficiency's sake) but formats results as Geohash strings.
- * 
  */
 
 public class GeoHashGridAggregator extends BucketsAggregator {
@@ -47,10 +46,10 @@ public class GeoHashGridAggregator extends BucketsAggregator {
     private final NumericValuesSource valuesSource;
     private final LongHash bucketOrds;
     private LongValues values;
-    
+
 
     public GeoHashGridAggregator(String name, AggregatorFactories factories, NumericValuesSource valuesSource,
-                              int requiredSize, int shardSize, AggregationContext aggregationContext, Aggregator parent, ExecutionMode executionMode) {
+                                 int requiredSize, int shardSize, AggregationContext aggregationContext, Aggregator parent, ExecutionMode executionMode) {
         super(name, BucketAggregationMode.PER_BUCKET, factories, INITIAL_CAPACITY, aggregationContext, parent, executionMode);
         this.valuesSource = valuesSource;
         this.requiredSize = requiredSize;
@@ -68,11 +67,11 @@ public class GeoHashGridAggregator extends BucketsAggregator {
         assert owningBucketOrdinal == 0;
         final int valuesCount = values.setDocument(doc);
 
-        if(passNumber>0) {
+        if (passNumber > 0) {
             //Repeat pass - only delegate to child aggs for buckets that survived first pass pruning
             for (int i = 0; i < valuesCount; ++i) {
                 final long val = values.nextValue();
-                long bucketOrdinal = bucketOrds.find(val);                
+                long bucketOrdinal = bucketOrds.find(val);
                 if (bucketDocCount(bucketOrdinal) != PRUNED_BUCKET) {
                     collectBucketNoCounts(doc, bucketOrdinal);
                 }
@@ -82,10 +81,10 @@ public class GeoHashGridAggregator extends BucketsAggregator {
                 final long val = values.nextValue();
                 long bucketOrdinal = bucketOrds.add(val);
                 if (bucketOrdinal < 0) { // already seen
-                    bucketOrdinal = - 1 - bucketOrdinal;
+                    bucketOrdinal = -1 - bucketOrdinal;
                 }
                 collectBucket(doc, bucketOrdinal);
-            }            
+            }
         }
     }
 
@@ -99,16 +98,15 @@ public class GeoHashGridAggregator extends BucketsAggregator {
         }
 
     }
-    
-    
+
 
     InternalGeoHashGrid.BucketPriorityQueue pruned;
-    
+
     @Override
     protected void doPostCollection() {
         super.doPostCollection();
-        
-        if(passNumber > 0){
+
+        if (passNumber > 0) {
             return;  // Already pruned
         }
         final int size = (int) Math.min(bucketOrds.size(), shardSize);
@@ -132,9 +130,9 @@ public class GeoHashGridAggregator extends BucketsAggregator {
             if (spare != null) {
                 //Pick up buckets that don't make the final cut and mark the ordinal as pruned.
                 clearDocCount(spare.bucketOrd);
-            }            
+            }
         }
-        
+
     }
 
     @Override
@@ -146,13 +144,13 @@ public class GeoHashGridAggregator extends BucketsAggregator {
             list = new InternalGeoHashGrid.Bucket[0];
         } else {
             list = new InternalGeoHashGrid.Bucket[pruned.size()];
-            for (int i = pruned.size() - 1; i >= 0; --i) {
+            for (int i = pruned.size() - 1; i >= 0; i--) {
                 final OrdinalBucket bucket = (OrdinalBucket) pruned.pop();
                 bucket.aggregations = bucketAggregations(bucket.bucketOrd);
                 list[i] = bucket;
             }
         }
-        
+
         return new InternalGeoHashGrid(name, requiredSize, Arrays.asList(list));
     }
 
@@ -160,19 +158,20 @@ public class GeoHashGridAggregator extends BucketsAggregator {
     public InternalGeoHashGrid buildEmptyAggregation() {
         return new InternalGeoHashGrid(name, requiredSize, Collections.<InternalGeoHashGrid.Bucket>emptyList());
     }
-    
-    
+
+
     @Override
     public void doRelease() {
         Releasables.release(bucketOrds);
-    }    
-    
+    }
+
     public static class Unmapped extends Aggregator {
         private int requiredSize;
+
         public Unmapped(String name, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
-            
+
             super(name, BucketAggregationMode.PER_BUCKET, AggregatorFactories.EMPTY, 0, aggregationContext, parent, ExecutionMode.SINGLE_PASS);
-            this.requiredSize=requiredSize;
+            this.requiredSize = requiredSize;
         }
 
         @Override
@@ -190,13 +189,13 @@ public class GeoHashGridAggregator extends BucketsAggregator {
 
         @Override
         public InternalGeoHashGrid buildAggregation(long owningBucketOrdinal) {
-            return (InternalGeoHashGrid) buildEmptyAggregation();
+            return buildEmptyAggregation();
         }
 
         @Override
         public InternalGeoHashGrid buildEmptyAggregation() {
             return new InternalGeoHashGrid(name, requiredSize, Collections.<InternalGeoHashGrid.Bucket>emptyList());
         }
-    }    
+    }
 
 }

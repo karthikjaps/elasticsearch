@@ -66,7 +66,7 @@ public class ExtendedStatsAggregator extends MetricsAggregator.MultiValue {
 
     @Override
     public boolean shouldCollect() {
-        return (passNumber == 0) && (valuesSource != null);
+        return passNumber == 0 && valuesSource != null;
     }
 
     @Override

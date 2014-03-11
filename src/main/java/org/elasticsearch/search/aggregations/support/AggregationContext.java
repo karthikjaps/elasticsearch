@@ -101,7 +101,9 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         }
     }
 
-    /** Get a value source given its configuration and the depth of the aggregator in the aggregation tree. */
+    /**
+     * Get a value source given its configuration and the depth of the aggregator in the aggregation tree.
+     */
     public <VS extends ValuesSource> VS valuesSource(ValuesSourceConfig<VS> config, int depth) {
         assert config.valid() : "value source config is invalid - must have either a field context or a script or marked as unmapped";
         assert !config.unmapped : "value source should not be created for unmapped fields";
@@ -273,7 +275,7 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
     public ReplayableAggregationsCollector getReplayableMatches() {
         return replayableMatches;
     }
-            
+
     private static class ConfigCacheKey {
 
         private final String field;
