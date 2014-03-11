@@ -30,9 +30,8 @@ import org.elasticsearch.search.aggregations.support.AggregationContext;
 import org.elasticsearch.search.aggregations.support.numeric.NumericValuesSource;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 /**
  *
@@ -145,19 +144,20 @@ public class LongTermsAggregator extends BucketsAggregator {
     public LongTerms buildAggregation(long owningBucketOrdinal) {
         assert owningBucketOrdinal == 0;
 
-        List<InternalTerms.Bucket> list;
+        final InternalTerms.Bucket[] list;
         if (prunedBuckets == null) {
-            list = new ArrayList<InternalTerms.Bucket>(0);
+            list = new InternalTerms.Bucket[0];
         } else {
-            //Pruning already occurred in doPostCollection method - empty the PQ
-            list = new ArrayList<InternalTerms.Bucket>(prunedBuckets.size());
+            // Pruning already occurred in doPostCollection method - empty the PQ
+            list = new InternalTerms.Bucket[prunedBuckets.size()];
             for (int i = prunedBuckets.size() - 1; i >= 0; --i) {
                 final LongTerms.Bucket bucket = (LongTerms.Bucket) prunedBuckets.pop();
-                list.add(new LongTerms.Bucket(bucket.term, bucket.docCount, bucketAggregations(bucket.bucketOrd)));
+                bucket.aggregations = bucketAggregations(bucket.bucketOrd);
+                list[i] = bucket;
             }
         }
 
-        return new LongTerms(name, order, valuesSource.formatter(), requiredSize, minDocCount, list);
+        return new LongTerms(name, order, valuesSource.formatter(), requiredSize, minDocCount, Arrays.asList(list));
     }
 
     @Override
