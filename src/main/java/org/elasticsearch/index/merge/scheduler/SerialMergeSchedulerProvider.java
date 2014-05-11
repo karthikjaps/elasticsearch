@@ -19,25 +19,27 @@
 
 package org.elasticsearch.index.merge.scheduler;
 
-import com.google.common.collect.ImmutableSet;
 import org.apache.lucene.index.*;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.index.merge.MergeStats;
 import org.elasticsearch.index.merge.OnGoingMerge;
 import org.elasticsearch.index.settings.IndexSettings;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.threadpool.ThreadPool;
+import com.google.common.collect.ImmutableSet;
 
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
- *
+ * @deprecated This provide just provides ConcurrentMergeScheduler, and is removed in master.
  */
 public class SerialMergeSchedulerProvider extends MergeSchedulerProvider {
+    public static final int DEFAULT_MAX_MERGE_AT_ONCE = 5;
 
     private Set<CustomSerialMergeScheduler> schedulers = new CopyOnWriteArraySet<>();
     private final int maxMergeAtOnce;
@@ -45,13 +47,17 @@ public class SerialMergeSchedulerProvider extends MergeSchedulerProvider {
     @Inject
     public SerialMergeSchedulerProvider(ShardId shardId, @IndexSettings Settings indexSettings, ThreadPool threadPool) {
         super(shardId, indexSettings, threadPool);
-        this.maxMergeAtOnce = componentSettings.getAsInt("max_merge_at_once", 5);
-        logger.trace("using [serial] merge scheduler, max_merge_at_once [{}]", maxMergeAtOnce);
+        this.maxMergeAtOnce = componentSettings.getAsInt("max_merge_at_once", DEFAULT_MAX_MERGE_AT_ONCE);
+        if (this.maxMergeAtOnce != DEFAULT_MAX_MERGE_AT_ONCE) {
+            logger.warn("ignoring max_merge_at_once [{}], because are using ConcurrentMergeScheduler(1, 1)", this.maxMergeAtOnce);
+        }
+        logger.trace("using [concurrent] merge scheduler, max_thread_count=1, max_merge_count=1");
     }
 
     @Override
     public MergeScheduler buildMergeScheduler() {
-        CustomSerialMergeScheduler scheduler = new CustomSerialMergeScheduler(logger, this);
+        CustomSerialMergeScheduler scheduler = new CustomSerialMergeScheduler(logger, shardId, this);
+        scheduler.setMaxMergesAndThreads(1, 1);
         schedulers.add(scheduler);
         return scheduler;
     }
@@ -74,24 +80,31 @@ public class SerialMergeSchedulerProvider extends MergeSchedulerProvider {
         return ImmutableSet.of();
     }
 
-    public static class CustomSerialMergeScheduler extends TrackingSerialMergeScheduler {
+    /** NOTE: subclasses TrackingCONCURRENTMergeScheduler, but we set max_merge_count = max_thread_count = 1 above */
+    public static class CustomSerialMergeScheduler extends TrackingConcurrentMergeScheduler {
+
+        private final ShardId shardId;
 
         private final SerialMergeSchedulerProvider provider;
 
-        public CustomSerialMergeScheduler(ESLogger logger, SerialMergeSchedulerProvider provider) {
-            super(logger, provider.maxMergeAtOnce);
+        private CustomSerialMergeScheduler(ESLogger logger, ShardId shardId, SerialMergeSchedulerProvider provider) {
+            super(logger);
+            this.shardId = shardId;
             this.provider = provider;
         }
 
         @Override
-        public void merge(IndexWriter writer, MergeTrigger trigger, boolean newMergesFound) throws CorruptIndexException, IOException {
-            try {
-                super.merge(writer, trigger, newMergesFound);
-            } catch (Throwable e) {
-                logger.warn("failed to merge", e);
-                provider.failedMerge(new MergePolicy.MergeException(e, writer.getDirectory()));
-                throw new MergePolicy.MergeException(e, writer.getDirectory());
-            }
+        protected MergeThread getMergeThread(IndexWriter writer, MergePolicy.OneMerge merge) throws IOException {
+            MergeThread thread = super.getMergeThread(writer, merge);
+            thread.setName(EsExecutors.threadName(provider.indexSettings(), "[" + shardId.index().name() + "][" + shardId.id() + "]: " + thread.getName()));
+            return thread;
+        }
+
+        @Override
+        protected void handleMergeException(Throwable exc) {
+            logger.warn("failed to merge", exc);
+            provider.failedMerge(new MergePolicy.MergeException(exc, dir));
+            super.handleMergeException(exc);
         }
 
         @Override
