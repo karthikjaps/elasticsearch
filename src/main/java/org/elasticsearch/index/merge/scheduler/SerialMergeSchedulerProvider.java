@@ -36,8 +36,9 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
- * @deprecated This provide just provides ConcurrentMergeScheduler, and is removed in master.
+ * @deprecated This provider just provides ConcurrentMergeScheduler, and is removed in master.
  */
+@Deprecated
 public class SerialMergeSchedulerProvider extends MergeSchedulerProvider {
     public static final int DEFAULT_MAX_MERGE_AT_ONCE = 5;
 
@@ -47,10 +48,13 @@ public class SerialMergeSchedulerProvider extends MergeSchedulerProvider {
     @Inject
     public SerialMergeSchedulerProvider(ShardId shardId, @IndexSettings Settings indexSettings, ThreadPool threadPool) {
         super(shardId, indexSettings, threadPool);
-        this.maxMergeAtOnce = componentSettings.getAsInt("max_merge_at_once", DEFAULT_MAX_MERGE_AT_ONCE);
-        if (this.maxMergeAtOnce != DEFAULT_MAX_MERGE_AT_ONCE) {
-            logger.warn("ignoring max_merge_at_once [{}], because are using ConcurrentMergeScheduler(1, 1)", this.maxMergeAtOnce);
+        Integer value = componentSettings.getAsInt("max_merge_at_once", null);
+        if (value != null) {
+            logger.warn("ignoring max_merge_at_once [{}], because we are using ConcurrentMergeScheduler(1, 1)", value);
+        } else {
+            value = DEFAULT_MAX_MERGE_AT_ONCE;
         }
+        this.maxMergeAtOnce = value;
         logger.trace("using [concurrent] merge scheduler, max_thread_count=1, max_merge_count=1");
     }
 
