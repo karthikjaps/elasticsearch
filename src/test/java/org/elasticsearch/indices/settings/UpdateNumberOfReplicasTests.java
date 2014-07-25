@@ -35,6 +35,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcke
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 import static org.hamcrest.Matchers.equalTo;
 
+@ElasticsearchIntegrationTest.ClusterScope(enableTransportClientSniffMode = false)
 public class UpdateNumberOfReplicasTests extends ElasticsearchIntegrationTest {
 
     @Override

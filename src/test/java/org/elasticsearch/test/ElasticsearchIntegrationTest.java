@@ -291,7 +291,7 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
                 default:
                     fail("Unknown Scope: [" + currentClusterScope + "]");
             }
-            cluster().beforeTest(getRandom(), getPerTestTransportClientRatio());
+            cluster().beforeTest(getRandom(), getPerTestTransportClientRatio(), getPerTestEnableSniffMode());
             cluster().wipe();
             randomIndexTemplate();
             logger.info("[{}#{}]: before test", getTestClass().getSimpleName(), getTestName());
@@ -1325,6 +1325,11 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
         double transportClientRatio() default -1;
 
         /**
+         * Returns whether the transport client sniff mode can be enabled or not
+         */
+        boolean enableTransportClientSniffMode() default true;
+
+        /**
          * Return whether or not to enable dynamic templates for the mappings.
          */
         boolean randomDynamicTemplates() default true;
@@ -1491,6 +1496,19 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
         }
         assert perTestRatio >= 0.0 && perTestRatio <= 1.0;
         return perTestRatio;
+    }
+
+    /**
+     * Returns whether the transport client sniff mode can be enabled. If it returns <tt>false</tt>
+     * sniff mode won't be utilised, otherwise it will get randomized, meaning that it might get enabled.
+     */
+    protected boolean getPerTestEnableSniffMode() {
+        final ClusterScope annotation = getAnnotation(this.getClass());
+        boolean perTestSniffMode = true;
+        if (annotation != null) {
+            perTestSniffMode = annotation.enableTransportClientSniffMode();
+        }
+        return perTestSniffMode;
     }
 
     /**
