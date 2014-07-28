@@ -50,7 +50,7 @@ import static org.hamcrest.Matchers.nullValue;
 /**
  *
  */
-@ClusterScope(scope = Scope.TEST, numDataNodes = 0)
+@ClusterScope(scope = Scope.TEST, numDataNodes = 0, enableTransportClientSniffMode = false)
 @Slow
 public class LocalGatewayIndexStateTests extends ElasticsearchIntegrationTest {
 

@@ -38,7 +38,7 @@ import static org.hamcrest.Matchers.hasItem;
 /**
  *
  */
-@ClusterScope(scope = Scope.TEST, numDataNodes = 0)
+@ClusterScope(scope = Scope.TEST, numDataNodes = 0, enableTransportClientSniffMode = false)
 public class RecoverAfterNodesTests extends ElasticsearchIntegrationTest {
 
     private final static TimeValue BLOCK_WAIT_TIMEOUT = TimeValue.timeValueSeconds(1);

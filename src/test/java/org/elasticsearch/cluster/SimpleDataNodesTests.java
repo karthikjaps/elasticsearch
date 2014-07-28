@@ -36,7 +36,7 @@ import static org.hamcrest.Matchers.equalTo;
 /**
  *
  */
-@ClusterScope(scope= Scope.TEST, numDataNodes =0)
+@ClusterScope(scope= Scope.TEST, numDataNodes = 0, enableTransportClientSniffMode = false)
 public class SimpleDataNodesTests extends ElasticsearchIntegrationTest {
 
     @Test
