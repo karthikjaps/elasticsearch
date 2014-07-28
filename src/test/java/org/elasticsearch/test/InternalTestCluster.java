@@ -96,7 +96,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.carrotsearch.randomizedtesting.RandomizedTest.frequently;
-import static com.carrotsearch.randomizedtesting.RandomizedTest.randomBoolean;
 import static com.carrotsearch.randomizedtesting.RandomizedTest.systemPropertyAsBoolean;
 import static junit.framework.Assert.fail;
 import static org.apache.lucene.util.LuceneTestCase.rarely;
@@ -708,6 +707,7 @@ public final class InternalTestCluster extends TestCluster {
                 if (maybeTransportClient instanceof TransportClient) {
                     transportClient = maybeTransportClient;
                 } else {
+                    //nocommit randomize back sniffMode
                     transportClient = new TransportClientFactory(transportClientEnableSniffMode).client(node, clusterName, random);
                 }
             }
@@ -799,7 +799,8 @@ public final class InternalTestCluster extends TestCluster {
                 if (logger.isDebugEnabled()) {
                     logger.debug("Using transport client for node [{}] sniff: [{}]", node.settings().get("name"), false);
                 }
-                return new TransportClientFactory(transportClientEnableSniffMode ? randomBoolean() : false).client(node, clusterName, random);
+                //nocommit randomize back sniffMode
+                return new TransportClientFactory(transportClientEnableSniffMode).client(node, clusterName, random);
             } else {
                 return node.client();
             }
