@@ -299,7 +299,8 @@ public class TransportClientNodesService extends AbstractComponent {
                         transportService.connectToNode(node);
                     } catch (Throwable e) {
                         it.remove();
-                        logger.debug("failed to connect to discovered node [" + node + "]", e);
+                        //TODO move level back to debug
+                        logger.info("failed to connect to discovered node [" + node + "]", e);
                     }
                 }
             }
@@ -377,6 +378,9 @@ public class TransportClientNodesService extends AbstractComponent {
 
         @Override
         protected void doSample() {
+            //TODO remove this line, added for debugging
+            logger.info("starting sniff sampling");
+
             // the nodes we are going to ping include the core listed nodes that were added
             // and the last round of discovered nodes
             Set<DiscoveryNode> nodesToPing = Sets.newHashSet();
@@ -456,6 +460,9 @@ public class TransportClientNodesService extends AbstractComponent {
                 return;
             }
 
+            //TODO remove this line, added for debugging
+            logger.info("sniff sampling: cluster state returned {} nodes", clusterStateResponses.size());
+
             HashSet<DiscoveryNode> newNodes = new HashSet<>();
             HashSet<DiscoveryNode> newFilteredNodes = new HashSet<>();
             for (Map.Entry<DiscoveryNode, ClusterStateResponse> entry : clusterStateResponses.entrySet()) {
@@ -470,6 +477,8 @@ public class TransportClientNodesService extends AbstractComponent {
             }
 
             nodes = validateNewNodes(newNodes);
+            //TODO remove this line, added for debugging
+            logger.info("sniff sampling: {} nodes left after validation", nodes.size());
             filteredNodes = ImmutableList.copyOf(newFilteredNodes);
         }
     }
