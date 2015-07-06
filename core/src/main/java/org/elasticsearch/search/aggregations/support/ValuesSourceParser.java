@@ -169,7 +169,7 @@ public class ValuesSourceParser<VS extends ValuesSource> {
         }
 
         return input;
-            }
+    }
 
     // NORELEASE remove this class when aggs refactoring complete
     /**
