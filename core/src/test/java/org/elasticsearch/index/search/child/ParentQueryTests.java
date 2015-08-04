@@ -47,6 +47,7 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.search.join.BitDocIdSetFilter;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.common.lease.Releasables;
@@ -230,8 +231,14 @@ public class ParentQueryTests extends AbstractChildTestCase {
                     for (Map.Entry<String, Float> entry : childIdsAndScore.entrySet()) {
                         TermsEnum.SeekStatus seekStatus = termsEnum.seekCeil(Uid.createUidAsBytes("child", entry.getKey()));
                         if (seekStatus == TermsEnum.SeekStatus.FOUND) {
-                            docsEnum = termsEnum.postings(slowLeafReader.getLiveDocs(), docsEnum, PostingsEnum.NONE);
-                            expectedResult.set(docsEnum.nextDoc());
+                            docsEnum = termsEnum.postings(docsEnum, PostingsEnum.NONE);
+                            final Bits liveDocs = slowLeafReader.getLiveDocs();
+                            for (int doc = docsEnum.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = docsEnum.nextDoc()) {
+                                if (liveDocs == null || liveDocs.get(doc)) {
+                                    break;
+                                }
+                            }
+                            expectedResult.set(docsEnum.docID());
                             FloatArrayList s = scores[docsEnum.docID()];
                             if (s == null) {
                                 scores[docsEnum.docID()] = s = new FloatArrayList(2);

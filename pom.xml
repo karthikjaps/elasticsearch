@@ -41,8 +41,8 @@
         <maven.compiler.target>1.7</maven.compiler.target>
 
         <!-- libraries -->
-        <lucene.version>5.2.1</lucene.version>
-        <lucene.maven.version>5.2.1</lucene.maven.version>
+        <lucene.version>5.3.0</lucene.version>
+        <lucene.maven.version>5.3.0</lucene.maven.version>
         <testframework.version>2.1.16</testframework.version>
         <jackson.version>2.5.3</jackson.version>
         <slf4j.version>1.6.2</slf4j.version>
@@ -135,6 +135,11 @@
             <id>oss-snapshots</id>
             <name>Sonatype OSS Snapshots</name>
             <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+        </repository>
+        <repository>
+            <id>lucene-rc</id>
+            <name>Lucene release candidate</name>
+            <url>https://dist.apache.org/repos/dist/dev/lucene/lucene-solr-5.3.0-RC1-rev1695567/lucene/maven</url>
         </repository>
     </repositories>
 
