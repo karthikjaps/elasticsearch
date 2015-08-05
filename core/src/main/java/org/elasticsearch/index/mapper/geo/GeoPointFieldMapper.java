@@ -19,17 +19,13 @@
 
 package org.elasticsearch.index.mapper.geo;
 
-import com.carrotsearch.hppc.ObjectHashSet;
-import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.google.common.collect.Iterators;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.util.GeoHashUtils;
 import org.apache.lucene.document.GeoPointField;
 import org.apache.lucene.index.IndexOptions;
-import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.Strings;
@@ -38,7 +34,6 @@ import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.DistanceUnit;
-import org.elasticsearch.common.util.ByteUtils;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
@@ -49,9 +44,7 @@ import org.elasticsearch.index.mapper.Mapper;
 import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.mapper.ParseContext;
 import org.elasticsearch.index.mapper.core.DoubleFieldMapper;
-import org.elasticsearch.index.mapper.core.LongFieldMapper;
 import org.elasticsearch.index.mapper.core.NumberFieldMapper;
-import org.elasticsearch.index.mapper.core.NumberFieldMapper.CustomNumericDocValuesField;
 import org.elasticsearch.index.mapper.core.StringFieldMapper;
 import org.elasticsearch.index.mapper.object.ArrayValueMapperParser;
 
@@ -296,7 +289,6 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
         private boolean normalizeLat = true;
 
         public GeoPointFieldType() {
-            super();
         }
 
         protected GeoPointFieldType(GeoPointFieldType ref) {
@@ -685,7 +677,7 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
 
     private void parsePointFromString(ParseContext context, GeoPoint sparse, String point) throws IOException {
         if (point.indexOf(',') < 0) {
-            parse(context, sparse.resetFromGeoHash(point), point);
+            parse(context, sparse.resetFromGeohashString(point), point);
         } else {
             parse(context, sparse.resetFromString(point), null);
         }
@@ -786,15 +778,4 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
             }
         }
     }
-
-    public static class CustomGeoPointDocValuesField extends NumberFieldMapper.CustomLongNumericDocValuesField {
-        public CustomGeoPointDocValuesField(String name, double lat, double lon) {
-            super(name, org.apache.lucene.util.GeoUtils.mortonHash(lon, lat));
-        }
-
-        public void add(double lat, double lon) {
-            super.add(org.apache.lucene.util.GeoUtils.mortonHash(lon, lat));
-        }
-    }
-
 }

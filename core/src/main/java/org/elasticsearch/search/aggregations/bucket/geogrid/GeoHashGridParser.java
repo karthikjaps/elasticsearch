@@ -20,8 +20,7 @@ package org.elasticsearch.search.aggregations.bucket.geogrid;
 
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedNumericDocValues;
-import org.apache.lucene.util.GeoUtils;
-import org.elasticsearch.common.geo.GeoHashUtils;
+import org.apache.lucene.util.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.MultiGeoPointValues;
@@ -30,7 +29,6 @@ import org.elasticsearch.index.fielddata.SortedNumericDoubleValues;
 import org.elasticsearch.index.fielddata.SortingNumericDocValues;
 import org.elasticsearch.index.query.GeoBoundingBoxQueryBuilder;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.AggregatorBase;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.NonCollectingAggregator;
@@ -166,7 +164,7 @@ public class GeoHashGridParser implements Aggregator.Parser {
                 resize(geoValues.count());
                 for (int i = 0; i < count(); ++i) {
                     GeoPoint target = geoValues.valueAt(i);
-                    values[i] = org.apache.lucene.util.GeoHashUtils.longEncode(target.getLon(), target.getLat(), precision);
+                    values[i] = GeoHashUtils.longEncode(target.getLon(), target.getLat(), precision);
                 }
                 sort();
             }

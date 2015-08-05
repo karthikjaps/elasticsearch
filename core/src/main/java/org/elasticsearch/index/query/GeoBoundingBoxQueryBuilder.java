@@ -19,7 +19,6 @@
 
 package org.elasticsearch.index.query;
 
-import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
@@ -63,7 +62,7 @@ public class GeoBoundingBoxQueryBuilder extends QueryBuilder {
     }
 
     public GeoBoundingBoxQueryBuilder topLeft(String geohash) {
-        return topLeft(GeoHashUtils.decode(geohash));
+        return topLeft(GeoPoint.fromGeohashString(geohash));
     }
 
     /**
@@ -83,7 +82,7 @@ public class GeoBoundingBoxQueryBuilder extends QueryBuilder {
     }
 
     public GeoBoundingBoxQueryBuilder bottomRight(String geohash) {
-        return bottomRight(GeoHashUtils.decode(geohash));
+        return bottomRight(GeoPoint.fromGeohashString(geohash));
     }
 
     /**
@@ -103,7 +102,7 @@ public class GeoBoundingBoxQueryBuilder extends QueryBuilder {
     }
 
     public GeoBoundingBoxQueryBuilder bottomLeft(String geohash) {
-        return bottomLeft(GeoHashUtils.decode(geohash));
+        return bottomLeft(GeoPoint.fromGeohashString(geohash));
     }
     
     /**
@@ -123,7 +122,7 @@ public class GeoBoundingBoxQueryBuilder extends QueryBuilder {
     }
 
     public GeoBoundingBoxQueryBuilder topRight(String geohash) {
-        return topRight(GeoHashUtils.decode(geohash));
+        return topRight(GeoPoint.fromGeohashString(geohash));
     }
 
     /**

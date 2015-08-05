@@ -73,7 +73,6 @@ public class IndexFieldDataService extends AbstractIndexComponent {
                 .put("short", new PackedArrayIndexFieldData.Builder().setNumericType(IndexNumericFieldData.NumericType.SHORT))
                 .put("int", new PackedArrayIndexFieldData.Builder().setNumericType(IndexNumericFieldData.NumericType.INT))
                 .put("long", new PackedArrayIndexFieldData.Builder().setNumericType(IndexNumericFieldData.NumericType.LONG))
-//                .put("geo_point", new GeoPointDoubleArrayIndexFieldData.Builder())
                 .put("geo_point", new GeoPointArrayIndexFieldData.Builder())
                 .put(ParentFieldMapper.NAME, new ParentChildIndexFieldData.Builder())
                 .put(IndexFieldMapper.NAME, new IndexIndexFieldData.Builder())

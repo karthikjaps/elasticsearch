@@ -22,7 +22,6 @@ package org.elasticsearch.index.fielddata.plain;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.ArrayUtil;
-import org.apache.lucene.util.GeoUtils;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.MultiGeoPointValues;
@@ -63,7 +62,6 @@ final class GeoPointDVAtomicFieldData extends AbstractAtomicGeoPointFieldData {
 
             @Override
             public void setDocument(int docId) {
-                long hash;
                 values.setDocument(docId);
                 count = values.count();
                 if (count > points.length) {
@@ -74,8 +72,7 @@ final class GeoPointDVAtomicFieldData extends AbstractAtomicGeoPointFieldData {
                     }
                 }
                 for (int i=0; i<count; ++i) {
-                    hash = values.valueAt(i);
-                    points[i].reset(GeoUtils.mortonUnhashLat(hash), GeoUtils.mortonUnhashLon(hash));
+                    points[i].resetFromIndexHash(values.valueAt(i));
                 }
             }
 
@@ -88,7 +85,6 @@ final class GeoPointDVAtomicFieldData extends AbstractAtomicGeoPointFieldData {
             public GeoPoint valueAt(int index) {
                 return points[index];
             }
-
         };
     }
 
