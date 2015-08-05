@@ -53,7 +53,7 @@ public class GeoPointParsingTests  extends ESTestCase {
         assertCloseTo(point.resetLat(0), 0, 0);
         assertCloseTo(point.resetLon(lon), 0, lon);
         assertCloseTo(point.resetLon(0), 0, 0);
-        assertCloseTo(point.resetFromGeoHash(GeoHashUtils.stringEncode(lon, lat)), lat, lon);
+        assertCloseTo(point.resetFromGeohashString(GeoHashUtils.stringEncode(lon, lat)), lat, lon);
         assertCloseTo(point.reset(0, 0), 0, 0);
         assertCloseTo(point.resetFromString(Double.toString(lat) + ", " + Double.toHexString(lon)), lat, lon);
         assertCloseTo(point.reset(0, 0), 0, 0);

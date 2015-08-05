@@ -22,17 +22,14 @@ package org.elasticsearch.index.query;
 import org.apache.lucene.search.GeoPointDistanceRangeQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.common.geo.GeoDistance;
-import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexGeoPointFieldData;
-import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.mapper.geo.GeoPointFieldMapper;
-import org.elasticsearch.index.search.geo.GeoDistanceRangeQuery;
 
 import java.io.IOException;
 
@@ -150,7 +147,7 @@ public class GeoDistanceRangeQueryParser implements QueryParser {
                     point.resetLon(parser.doubleValue());
                     fieldName = currentFieldName.substring(0, currentFieldName.length() - GeoPointFieldMapper.Names.LON_SUFFIX.length());
                 } else if (currentFieldName.endsWith(GeoPointFieldMapper.Names.GEOHASH_SUFFIX)) {
-                    GeoHashUtils.decode(parser.text(), point);
+                    point.resetFromGeohashString(parser.text());
                     fieldName = currentFieldName.substring(0, currentFieldName.length() - GeoPointFieldMapper.Names.GEOHASH_SUFFIX.length());
                 } else if ("_name".equals(currentFieldName)) {
                     queryName = parser.text();

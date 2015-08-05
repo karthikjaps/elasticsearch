@@ -137,7 +137,7 @@ public class GeoDistanceBuilder extends AggregationBuilder<GeoDistanceBuilder> {
         if (this.point == null) {
             this.point = new GeoPoint();
         }
-        this.point.resetFromGeoHash(geohash);
+        this.point.resetFromGeohashString(geohash);
         return this;
     }
 

@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.elasticsearch.index.fielddata.plain;
 
 import org.apache.lucene.index.DocValues;
@@ -40,10 +39,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {GeoPointArrayAtomicFieldData}.java
- * nknize, 6/18/15 9:40 PM
- * <p>
- * Description:
+ *
  */
 public abstract class GeoPointArrayAtomicFieldData extends AbstractAtomicGeoPointFieldData {
     @Override
@@ -148,9 +144,7 @@ public abstract class GeoPointArrayAtomicFieldData extends AbstractAtomicGeoPoin
             final GeoPointValues values = new GeoPointValues() {
                 @Override
                 public GeoPoint get(int docID) {
-                    final long hashedPoint = indexedPoint.get(docID);
-                    return point.reset(GeoUtils.mortonUnhashLat(hashedPoint),
-                            GeoUtils.mortonUnhashLon(hashedPoint));
+                    return point.resetFromIndexHash(indexedPoint.get(docID));
                 }
             };
             return FieldData.singleton(values, set);

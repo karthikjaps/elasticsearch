@@ -355,19 +355,19 @@ public interface ScriptDocValues<T> extends List<T> {
 
         public double geohashDistance(String geohash) {
             GeoPoint point = getValue();
-            GeoPoint p = new GeoPoint().resetFromGeoHash(geohash);
+            GeoPoint p = new GeoPoint().resetFromGeohashString(geohash);
             return GeoDistance.ARC.calculate(point.lat(), point.lon(), p.lat(), p.lon(), DistanceUnit.DEFAULT);
         }
 
         public double geohashDistanceInKm(String geohash) {
             GeoPoint point = getValue();
-            GeoPoint p = new GeoPoint().resetFromGeoHash(geohash);
+            GeoPoint p = new GeoPoint().resetFromGeohashString(geohash);
             return GeoDistance.ARC.calculate(point.lat(), point.lon(), p.lat(), p.lon(), DistanceUnit.KILOMETERS);
         }
 
         public double geohashDistanceInMiles(String geohash) {
             GeoPoint point = getValue();
-            GeoPoint p = new GeoPoint().resetFromGeoHash(geohash);
+            GeoPoint p = new GeoPoint().resetFromGeohashString(geohash);
             return GeoDistance.ARC.calculate(point.lat(), point.lon(), p.lat(), p.lon(), DistanceUnit.MILES);
         }
 

@@ -21,15 +21,15 @@ package org.elasticsearch.index.query;
 
 import org.apache.lucene.search.GeoPointDistanceQuery;
 import org.apache.lucene.search.Query;
+import org.elasticsearch.ElasticsearchParseException;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.geo.GeoDistance;
-import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexGeoPointFieldData;
-import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.mapper.geo.GeoPointFieldMapper;
 import org.elasticsearch.index.search.geo.GeoDistanceRangeQuery;
@@ -67,10 +67,11 @@ public class GeoDistanceQueryParser implements QueryParser {
         String currentFieldName = null;
         GeoPoint point = new GeoPoint();
         String fieldName = null;
-        double distance = 0;
+        double distance;
         Object vDistance = null;
         DistanceUnit unit = DistanceUnit.DEFAULT;
         GeoDistance geoDistance = GeoDistance.DEFAULT;
+        boolean legacy = !parseContext.indexVersionCreated().onOrAfter(Version.V_2_0_0_beta1);
         String optimizeBbox = "memory";
         boolean normalizeLon = true;
         boolean normalizeLat = true;
@@ -95,7 +96,7 @@ public class GeoDistanceQueryParser implements QueryParser {
                         } else if (currentName.equals(GeoPointFieldMapper.Names.LON)) {
                             point.resetLon(parser.doubleValue());
                         } else if (currentName.equals(GeoPointFieldMapper.Names.GEOHASH)) {
-                            GeoHashUtils.decode(parser.text(), point);
+                            point.resetFromGeohashString(parser.text());
                         } else {
                             throw new QueryParsingException(parseContext, "[geo_distance] query does not support [" + currentFieldName
                                     + "]");
@@ -120,12 +121,16 @@ public class GeoDistanceQueryParser implements QueryParser {
                     point.resetLon(parser.doubleValue());
                     fieldName = currentFieldName.substring(0, currentFieldName.length() - GeoPointFieldMapper.Names.LON_SUFFIX.length());
                 } else if (currentFieldName.endsWith(GeoPointFieldMapper.Names.GEOHASH_SUFFIX)) {
-                    GeoHashUtils.decode(parser.text(), point);
+                    point.resetFromGeohashString(parser.text());
                     fieldName = currentFieldName.substring(0, currentFieldName.length() - GeoPointFieldMapper.Names.GEOHASH_SUFFIX.length());
                 } else if ("_name".equals(currentFieldName)) {
                     queryName = parser.text();
                 } else if ("optimize_bbox".equals(currentFieldName) || "optimizeBbox".equals(currentFieldName)) {
-                    optimizeBbox = parser.textOrNull();
+                    if (legacy) {
+                        optimizeBbox = parser.textOrNull();
+                    } else {
+                        throw new ElasticsearchParseException("[" + currentFieldName + "] is deprecated");
+                    }
                 } else if ("normalize".equals(currentFieldName)) {
                     normalizeLat = parser.booleanValue();
                     normalizeLon = parser.booleanValue();
@@ -156,13 +161,16 @@ public class GeoDistanceQueryParser implements QueryParser {
         if (!(fieldType instanceof GeoPointFieldMapper.GeoPointFieldType)) {
             throw new QueryParsingException(parseContext, "field [" + fieldName + "] is not a geo_point field");
         }
-        GeoPointFieldMapper.GeoPointFieldType geoFieldType = ((GeoPointFieldMapper.GeoPointFieldType) fieldType);
-
 
         IndexGeoPointFieldData indexFieldData = parseContext.getForField(fieldType);
-        Query query = new GeoPointDistanceQuery(indexFieldData.getFieldNames().indexName(), point.lon(), point.lat(), distance);
-//        Query query = new GeoDistanceRangeQuery(point, null, distance, true, false, geoDistance, geoFieldType, indexFieldData,
-//                optimizeBbox);
+        final Query query;
+        if (legacy) {
+            query = new GeoDistanceRangeQuery(point, null, distance, true, false, geoDistance, ((GeoPointFieldMapper.GeoPointFieldType)
+                    fieldType), indexFieldData, optimizeBbox);
+        } else {
+            query = new GeoPointDistanceQuery(indexFieldData.getFieldNames().indexName(), point.lon(), point.lat(), distance);
+        }
+
         if (queryName != null) {
             parseContext.addNamedQuery(queryName, query);
         }

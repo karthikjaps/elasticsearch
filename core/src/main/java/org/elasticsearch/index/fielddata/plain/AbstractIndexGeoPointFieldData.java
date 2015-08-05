@@ -21,11 +21,8 @@ package org.elasticsearch.index.fielddata.plain;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefIterator;
-import org.apache.lucene.util.CharsRefBuilder;
-import org.apache.lucene.util.GeoUtils;
 import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.common.Nullable;
-import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.fielddata.*;
@@ -52,32 +49,6 @@ abstract class AbstractIndexGeoPointFieldData extends AbstractIndexFieldData<Ato
         }
     }
 
-    protected static class GeoPointEnum {
-
-        private final BytesRefIterator termsEnum;
-        private final GeoPoint next;
-        private final CharsRefBuilder spare;
-
-        protected GeoPointEnum(BytesRefIterator termsEnum) {
-            this.termsEnum = termsEnum;
-            next = new GeoPoint();
-            spare = new CharsRefBuilder();
-        }
-
-        public GeoPoint next() throws IOException {
-            final BytesRef term = termsEnum.next();
-            if (term == null) {
-                return null;
-            }
-            final long hashed = NumericUtils.prefixCodedToLong(term);
-            final double lat = GeoUtils.mortonUnhashLat(hashed);
-            final double lon = GeoUtils.mortonUnhashLon(hashed);
-
-            return next.reset(lat, lon);
-        }
-
-    }
-
     public AbstractIndexGeoPointFieldData(Index index, Settings indexSettings, Names fieldNames, FieldDataType fieldDataType, IndexFieldDataCache cache) {
         super(index, indexSettings, fieldNames, fieldDataType, cache);
     }
@@ -91,5 +62,4 @@ abstract class AbstractIndexGeoPointFieldData extends AbstractIndexFieldData<Ato
     protected AtomicGeoPointFieldData empty(int maxDoc) {
         return AbstractAtomicGeoPointFieldData.empty(maxDoc);
     }
-
 }

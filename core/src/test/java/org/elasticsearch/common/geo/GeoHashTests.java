@@ -32,7 +32,8 @@ public class GeoHashTests extends ESTestCase {
 
     @Test
     public void testGeohashAsLongRoutines()  {
-        
+        final GeoPoint expected = new GeoPoint();
+        final GeoPoint actual = new GeoPoint();
         //Ensure that for all points at all supported levels of precision
         // that the long encoding of a geohash is compatible with its 
         // String based counterpart
@@ -54,9 +55,9 @@ public class GeoHashTests extends ESTestCase {
                     assertEquals(geohash, geohashFromLong);
 
                     // decode from the full-res geohash string
-                    GeoPoint expected = org.elasticsearch.common.geo.GeoHashUtils.decode(geohash);
+                    expected.resetFromGeohashString(geohash);
                     // decode from the geohash encoded long
-                    GeoPoint actual = org.elasticsearch.common.geo.GeoHashUtils.decode(geoAsLong);
+                    actual.resetFromGeohashLong(geoAsLong);
 
                     assertEquals(expected, actual);
                 }

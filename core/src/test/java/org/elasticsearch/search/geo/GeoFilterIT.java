@@ -28,7 +28,7 @@ import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.query.SpatialArgs;
 import org.apache.lucene.spatial.query.SpatialOperation;
 import org.apache.lucene.spatial.query.UnsupportedSpatialOperation;
-import org.apache.lucene.util.GeoDistanceUtils;
+import org.apache.lucene.util.GeoHashUtils;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -36,7 +36,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.geo.builders.MultiPolygonBuilder;
@@ -504,7 +503,7 @@ public class GeoFilterIT extends ESIntegTestCase {
         expectedCounts.put(geoHashCellQuery("pin", geohash.substring(0, geohash.length() - 1), true), 2L + neighbors.size() + parentNeighbors.size());
 
         // Testing point formats and precision
-        GeoPoint point = GeoHashUtils.decode(geohash);
+        GeoPoint point = GeoPoint.fromGeohashString(geohash);
         int precision = geohash.length();
 
         expectedCounts.put(geoHashCellQuery("pin", point).neighbors(true).precision(precision), 1L + neighbors.size());

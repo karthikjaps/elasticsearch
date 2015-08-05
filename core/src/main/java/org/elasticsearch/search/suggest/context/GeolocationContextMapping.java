@@ -669,7 +669,7 @@ public class GeolocationContextMapping extends ContextMapping {
                     int precision = Math.min(p, geohash.length());
                     String truncatedGeohash = geohash.substring(0, precision);
                     if(mapping.neighbors) {
-                        org.elasticsearch.common.geo.GeoHashUtils.addNeighbors(truncatedGeohash, precision, locations);
+                        GeoHashUtils.addNeighbors(truncatedGeohash, precision, locations);
                     }
                     locations.add(truncatedGeohash);
                 }

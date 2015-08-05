@@ -380,7 +380,7 @@ public class GeoUtils {
                 if(!Double.isNaN(lat) || !Double.isNaN(lon)) {
                     throw new ElasticsearchParseException("field must be either lat/lon or geohash");
                 } else {
-                    return point.resetFromGeoHash(geohash);
+                    return point.resetFromGeohashString(geohash);
                 }
             } else if (Double.isNaN(lat)) {
                 throw new ElasticsearchParseException("field [{}] missing", LATITUDE);
@@ -423,7 +423,7 @@ public class GeoUtils {
             double lon = Double.parseDouble(data.substring(comma + 1).trim());
             return point.reset(lat, lon);
         } else {
-            return point.resetFromGeoHash(data);
+            return point.resetFromGeohashString(data);
         }
     }
 
