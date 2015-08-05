@@ -21,6 +21,7 @@ package org.elasticsearch.index.mapper.multifield;
 
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.util.GeoUtils;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
@@ -270,7 +271,7 @@ public class MultiFieldTests extends ESSingleNodeTestCase {
         assertThat(docMapper.mappers().getMapper("a.b"), notNullValue());
         assertThat(docMapper.mappers().getMapper("a.b"), instanceOf(GeoPointFieldMapper.class));
         assertNotSame(IndexOptions.NONE, docMapper.mappers().getMapper("a.b").fieldType().indexOptions());
-        assertThat(docMapper.mappers().getMapper("a.b").fieldType().stored(), equalTo(false));
+        assertThat(docMapper.mappers().getMapper("a.b").fieldType().stored(), equalTo(true));
         assertThat(docMapper.mappers().getMapper("a.b").fieldType().tokenized(), equalTo(false));
 
         BytesReference json = jsonBuilder().startObject()
@@ -288,14 +289,15 @@ public class MultiFieldTests extends ESSingleNodeTestCase {
         f = doc.getField("a.b");
         assertThat(f, notNullValue());
         assertThat(f.name(), equalTo("a.b"));
-        assertThat(f.stringValue(), equalTo("-1.0,-1.0"));
-        assertThat(f.fieldType().stored(), equalTo(false));
+        long hash = GeoUtils.mortonHash(-1.0, -1.0);
+        assertThat(Long.parseLong(f.stringValue()), equalTo(hash));
+        assertThat(f.fieldType().stored(), equalTo(true));
         assertNotSame(IndexOptions.NONE, f.fieldType().indexOptions());
 
         assertThat(docMapper.mappers().getMapper("b"), notNullValue());
         assertThat(docMapper.mappers().getMapper("b"), instanceOf(GeoPointFieldMapper.class));
         assertNotSame(IndexOptions.NONE, docMapper.mappers().getMapper("b").fieldType().indexOptions());
-        assertThat(docMapper.mappers().getMapper("b").fieldType().stored(), equalTo(false));
+        assertThat(docMapper.mappers().getMapper("b").fieldType().stored(), equalTo(true));
         assertThat(docMapper.mappers().getMapper("b").fieldType().tokenized(), equalTo(false));
 
         assertThat(docMapper.mappers().getMapper("b.a"), notNullValue());
@@ -312,8 +314,8 @@ public class MultiFieldTests extends ESSingleNodeTestCase {
         f = doc.getField("b");
         assertThat(f, notNullValue());
         assertThat(f.name(), equalTo("b"));
-        assertThat(f.stringValue(), equalTo("-1.0,-1.0"));
-        assertThat(f.fieldType().stored(), equalTo(false));
+        assertThat(Long.parseLong(f.stringValue()), equalTo(hash));
+        assertThat(f.fieldType().stored(), equalTo(true));
         assertNotSame(IndexOptions.NONE, f.fieldType().indexOptions());
 
         f = doc.getField("b.a");
@@ -331,15 +333,16 @@ public class MultiFieldTests extends ESSingleNodeTestCase {
         f = doc.getFields("b")[0];
         assertThat(f, notNullValue());
         assertThat(f.name(), equalTo("b"));
-        assertThat(f.stringValue(), equalTo("-1.0,-1.0"));
-        assertThat(f.fieldType().stored(), equalTo(false));
+        assertThat(Long.parseLong(f.stringValue()), equalTo(hash));
+        assertThat(f.fieldType().stored(), equalTo(true));
         assertNotSame(IndexOptions.NONE, f.fieldType().indexOptions());
 
         f = doc.getFields("b")[1];
         assertThat(f, notNullValue());
         assertThat(f.name(), equalTo("b"));
-        assertThat(f.stringValue(), equalTo("-2.0,-2.0"));
-        assertThat(f.fieldType().stored(), equalTo(false));
+        hash = GeoUtils.mortonHash(-2.0, -2.0);
+        assertThat(Long.parseLong(f.stringValue()), equalTo(hash));
+        assertThat(f.fieldType().stored(), equalTo(true));
         assertNotSame(IndexOptions.NONE, f.fieldType().indexOptions());
 
         f = doc.getField("b.a");

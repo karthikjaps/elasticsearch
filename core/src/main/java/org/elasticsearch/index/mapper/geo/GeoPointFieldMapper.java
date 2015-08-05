@@ -23,13 +23,17 @@ import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.google.common.collect.Iterators;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.SortedNumericDocValuesField;
+import org.apache.lucene.index.DocValuesType;
+import org.apache.lucene.util.GeoHashUtils;
+import org.apache.lucene.document.GeoPointField;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.geo.GeoDistance;
-import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.settings.Settings;
@@ -45,6 +49,7 @@ import org.elasticsearch.index.mapper.Mapper;
 import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.mapper.ParseContext;
 import org.elasticsearch.index.mapper.core.DoubleFieldMapper;
+import org.elasticsearch.index.mapper.core.LongFieldMapper;
 import org.elasticsearch.index.mapper.core.NumberFieldMapper;
 import org.elasticsearch.index.mapper.core.NumberFieldMapper.CustomNumericDocValuesField;
 import org.elasticsearch.index.mapper.core.StringFieldMapper;
@@ -104,6 +109,11 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
             FIELD_TYPE.setIndexOptions(IndexOptions.DOCS);
             FIELD_TYPE.setTokenized(false);
             FIELD_TYPE.setOmitNorms(true);
+            FIELD_TYPE.setNumericType(FieldType.NumericType.LONG);
+            FIELD_TYPE.setNumericPrecisionStep(GeoPointField.PRECISION_STEP);
+            FIELD_TYPE.setDocValuesType(DocValuesType.SORTED_NUMERIC);
+            FIELD_TYPE.setHasDocValues(true);
+            FIELD_TYPE.setStored(true);
             FIELD_TYPE.freeze();
         }
     }
@@ -204,10 +214,9 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
             // store them as a single token.
             fieldType.setTokenized(false);
             setupFieldType(context);
-            fieldType.setHasDocValues(false);
-            defaultFieldType.setHasDocValues(false);
+
             return new GeoPointFieldMapper(name, fieldType, defaultFieldType, context.indexSettings(), origPathType,
-                     latMapper, lonMapper, geohashMapper, multiFieldsBuilder.build(this, context));
+                     latMapper, lonMapper, geohashMapper, multiFieldsBuilder.build(this, context), copyTo);
         }
     }
 
@@ -286,7 +295,9 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
         private boolean normalizeLon = true;
         private boolean normalizeLat = true;
 
-        public GeoPointFieldType() {}
+        public GeoPointFieldType() {
+            super();
+        }
 
         protected GeoPointFieldType(GeoPointFieldType ref) {
             super(ref);
@@ -586,8 +597,9 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
     private final StringFieldMapper geohashMapper;
 
     public GeoPointFieldMapper(String simpleName, MappedFieldType fieldType, MappedFieldType defaultFieldType, Settings indexSettings,
-            ContentPath.Type pathType, DoubleFieldMapper latMapper, DoubleFieldMapper lonMapper, StringFieldMapper geohashMapper,MultiFields multiFields) {
-        super(simpleName, fieldType, defaultFieldType, indexSettings, multiFields, null);
+                               ContentPath.Type pathType, DoubleFieldMapper latMapper, DoubleFieldMapper lonMapper,
+                               StringFieldMapper geohashMapper, MultiFields multiFields, CopyTo copyTo) {
+        super(simpleName, fieldType, defaultFieldType, indexSettings, multiFields, copyTo);
         this.pathType = pathType;
         this.latMapper = latMapper;
         this.lonMapper = lonMapper;
@@ -696,27 +708,17 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
         }
 
         if (fieldType().indexOptions() != IndexOptions.NONE || fieldType().stored()) {
-            Field field = new Field(fieldType().names().indexName(), Double.toString(point.lat()) + ',' + Double.toString(point.lon()), fieldType());
-            context.doc().add(field);
+            context.doc().add(new GeoPointField(fieldType().names().indexName(), point.lon(), point.lat(), fieldType() ));
         }
         if (fieldType().isGeohashEnabled()) {
             if (geohash == null) {
-                geohash = GeoHashUtils.encode(point.lat(), point.lon());
+                geohash = GeoHashUtils.stringEncode(point.lon(), point.lat());
             }
             addGeohashField(context, geohash);
         }
         if (fieldType().isLatLonEnabled()) {
             latMapper.parse(context.createExternalValueContext(point.lat()));
             lonMapper.parse(context.createExternalValueContext(point.lon()));
-        }
-        if (fieldType().hasDocValues()) {
-            CustomGeoPointDocValuesField field = (CustomGeoPointDocValuesField) context.doc().getByKey(fieldType().names().indexName());
-            if (field == null) {
-                field = new CustomGeoPointDocValuesField(fieldType().names().indexName(), point.lat(), point.lon());
-                context.doc().addWithKey(fieldType().names().indexName(), field);
-            } else {
-                field.add(point.lat(), point.lon());
-            }
         }
         multiFields.parse(this, context);
     }
@@ -785,31 +787,13 @@ public class GeoPointFieldMapper extends FieldMapper implements ArrayValueMapper
         }
     }
 
-    public static class CustomGeoPointDocValuesField extends CustomNumericDocValuesField {
-
-        private final ObjectHashSet<GeoPoint> points;
-
+    public static class CustomGeoPointDocValuesField extends NumberFieldMapper.CustomLongNumericDocValuesField {
         public CustomGeoPointDocValuesField(String name, double lat, double lon) {
-            super(name);
-            points = new ObjectHashSet<>(2);
-            points.add(new GeoPoint(lat, lon));
+            super(name, org.apache.lucene.util.GeoUtils.mortonHash(lon, lat));
         }
 
         public void add(double lat, double lon) {
-            points.add(new GeoPoint(lat, lon));
-        }
-
-        @Override
-        public BytesRef binaryValue() {
-            final byte[] bytes = new byte[points.size() * 16];
-            int off = 0;
-            for (Iterator<ObjectCursor<GeoPoint>> it = points.iterator(); it.hasNext(); ) {
-                final GeoPoint point = it.next().value;
-                ByteUtils.writeDoubleLE(point.getLat(), bytes, off);
-                ByteUtils.writeDoubleLE(point.getLon(), bytes, off + 8);
-                off += 16;
-            }
-            return new BytesRef(bytes);
+            super.add(org.apache.lucene.util.GeoUtils.mortonHash(lon, lat));
         }
     }
 

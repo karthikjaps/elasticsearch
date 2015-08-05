@@ -19,6 +19,8 @@
 
 package org.elasticsearch.index.mapper.externalvalues;
 
+import org.apache.lucene.util.GeoUtils;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.MapperService;
@@ -60,8 +62,9 @@ public class SimpleExternalMappingTests extends ESSingleNodeTestCase {
         assertThat(doc.rootDoc().getField("field.bool"), notNullValue());
         assertThat(doc.rootDoc().getField("field.bool").stringValue(), is("T"));
 
+        GeoPoint point = ExternalMapper.geoPointTest;
         assertThat(doc.rootDoc().getField("field.point"), notNullValue());
-        assertThat(doc.rootDoc().getField("field.point").stringValue(), is("42.0,51.0"));
+        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(GeoUtils.mortonHash(point.lon(), point.lat())+""));
 
         assertThat(doc.rootDoc().getField("field.shape"), notNullValue());
 
@@ -108,8 +111,9 @@ public class SimpleExternalMappingTests extends ESSingleNodeTestCase {
         assertThat(doc.rootDoc().getField("field.bool"), notNullValue());
         assertThat(doc.rootDoc().getField("field.bool").stringValue(), is("T"));
 
+        GeoPoint point = ExternalMapper.geoPointTest;
         assertThat(doc.rootDoc().getField("field.point"), notNullValue());
-        assertThat(doc.rootDoc().getField("field.point").stringValue(), is("42.0,51.0"));
+        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(GeoUtils.mortonHash(point.lon(), point.lat())+""));
 
         assertThat(doc.rootDoc().getField("field.shape"), notNullValue());
 
@@ -162,8 +166,9 @@ public class SimpleExternalMappingTests extends ESSingleNodeTestCase {
         assertThat(doc.rootDoc().getField("field.bool"), notNullValue());
         assertThat(doc.rootDoc().getField("field.bool").stringValue(), is("T"));
 
+        GeoPoint point = ExternalMapper.geoPointTest;
         assertThat(doc.rootDoc().getField("field.point"), notNullValue());
-        assertThat(doc.rootDoc().getField("field.point").stringValue(), is("42.0,51.0"));
+        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(GeoUtils.mortonHash(point.lon(), point.lat())+""));
 
         assertThat(doc.rootDoc().getField("field.shape"), notNullValue());
 

@@ -18,6 +18,8 @@
 package org.elasticsearch.common.geo;
 
 
+import org.apache.lucene.util.GeoUtils;
+
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -30,83 +32,11 @@ import java.util.Collection;
 // replaced with native DECODE_MAP
 public class GeoHashUtils {
 
-    private static final char[] BASE_32 = {'0', '1', '2', '3', '4', '5', '6',
-            '7', '8', '9', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'm', 'n',
-            'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
-
-    public static final int PRECISION = 12;
-    private static final int[] BITS = {16, 8, 4, 2, 1};
-
     private GeoHashUtils() {
     }
 
-    public static String encode(double latitude, double longitude) {
-        return encode(latitude, longitude, PRECISION);
-    }
-
-    /**
-     * Encodes the given latitude and longitude into a geohash
-     *
-     * @param latitude  Latitude to encode
-     * @param longitude Longitude to encode
-     * @return Geohash encoding of the longitude and latitude
-     */
-    public static String encode(double latitude, double longitude, int precision) {
-//        double[] latInterval = {-90.0, 90.0};
-//        double[] lngInterval = {-180.0, 180.0};
-        double latInterval0 = -90.0;
-        double latInterval1 = 90.0;
-        double lngInterval0 = -180.0;
-        double lngInterval1 = 180.0;
-
-        final StringBuilder geohash = new StringBuilder();
-        boolean isEven = true;
-
-        int bit = 0;
-        int ch = 0;
-
-        while (geohash.length() < precision) {
-            double mid = 0.0;
-            if (isEven) {
-//                mid = (lngInterval[0] + lngInterval[1]) / 2D;
-                mid = (lngInterval0 + lngInterval1) / 2D;
-                if (longitude > mid) {
-                    ch |= BITS[bit];
-//                    lngInterval[0] = mid;
-                    lngInterval0 = mid;
-                } else {
-//                    lngInterval[1] = mid;
-                    lngInterval1 = mid;
-                }
-            } else {
-//                mid = (latInterval[0] + latInterval[1]) / 2D;
-                mid = (latInterval0 + latInterval1) / 2D;
-                if (latitude > mid) {
-                    ch |= BITS[bit];
-//                    latInterval[0] = mid;
-                    latInterval0 = mid;
-                } else {
-//                    latInterval[1] = mid;
-                    latInterval1 = mid;
-                }
-            }
-
-            isEven = !isEven;
-
-            if (bit < 4) {
-                bit++;
-            } else {
-                geohash.append(BASE_32[ch]);
-                bit = 0;
-                ch = 0;
-            }
-        }
-
-        return geohash.toString();
-    }
-
     private static final char encode(int x, int y) {
-        return BASE_32[((x & 1) + ((y & 1) * 2) + ((x & 2) * 2) + ((y & 2) * 4) + ((x & 4) * 4)) % 32];
+        return org.apache.lucene.util.GeoHashUtils.BASE_32[((x & 1) + ((y & 1) * 2) + ((x & 2) * 2) + ((y & 2) * 4) + ((x & 4) * 4)) % 32];
     }
 
     /**
@@ -129,7 +59,7 @@ public class GeoHashUtils {
      * @return geohash of the defined cell
      */
     private final static String neighbor(String geohash, int level, int dx, int dy) {
-        int cell = decode(geohash.charAt(level - 1));
+        int cell = org.apache.lucene.util.GeoHashUtils.BASE_32_STRING.indexOf(geohash.charAt(level -1));
 
         // Decoding the Geohash bit pattern to determine grid coordinates
         int x0 = cell & 1;  // first bit of x
@@ -217,77 +147,6 @@ public class GeoHashUtils {
         return neighbors;
     }
 
-    private static final int decode(char geo) {
-        switch (geo) {
-            case '0':
-                return 0;
-            case '1':
-                return 1;
-            case '2':
-                return 2;
-            case '3':
-                return 3;
-            case '4':
-                return 4;
-            case '5':
-                return 5;
-            case '6':
-                return 6;
-            case '7':
-                return 7;
-            case '8':
-                return 8;
-            case '9':
-                return 9;
-            case 'b':
-                return 10;
-            case 'c':
-                return 11;
-            case 'd':
-                return 12;
-            case 'e':
-                return 13;
-            case 'f':
-                return 14;
-            case 'g':
-                return 15;
-            case 'h':
-                return 16;
-            case 'j':
-                return 17;
-            case 'k':
-                return 18;
-            case 'm':
-                return 19;
-            case 'n':
-                return 20;
-            case 'p':
-                return 21;
-            case 'q':
-                return 22;
-            case 'r':
-                return 23;
-            case 's':
-                return 24;
-            case 't':
-                return 25;
-            case 'u':
-                return 26;
-            case 'v':
-                return 27;
-            case 'w':
-                return 28;
-            case 'x':
-                return 29;
-            case 'y':
-                return 30;
-            case 'z':
-                return 31;
-            default:
-                throw new IllegalArgumentException("the character '" + geo + "' is not a valid geohash character");
-        }
-    }
-
     /**
      * Decodes the given geohash
      *
@@ -298,184 +157,16 @@ public class GeoHashUtils {
         return decode(geohash, new GeoPoint());
     }
 
-    /**
-     * Decodes the given geohash into a latitude and longitude
-     *
-     * @param geohash Geohash to decocde
-     * @return the given {@link GeoPoint} reseted to the center of
-     *         cell, given by the geohash
-     */
-    public static GeoPoint decode(String geohash, GeoPoint ret) {
-        double[] interval = decodeCell(geohash);
-        return ret.reset((interval[0] + interval[1]) / 2D, (interval[2] + interval[3]) / 2D);
-    }
-
-    private static double[] decodeCell(String geohash) {
-        double[] interval = {-90.0, 90.0, -180.0, 180.0};
-        boolean isEven = true;
-
-        for (int i = 0; i < geohash.length(); i++) {
-            final int cd = decode(geohash.charAt(i));
-
-            for (int mask : BITS) {
-                if (isEven) {
-                    if ((cd & mask) != 0) {
-                        interval[2] = (interval[2] + interval[3]) / 2D;
-                    } else {
-                        interval[3] = (interval[2] + interval[3]) / 2D;
-                    }
-                } else {
-                    if ((cd & mask) != 0) {
-                        interval[0] = (interval[0] + interval[1]) / 2D;
-                    } else {
-                        interval[1] = (interval[0] + interval[1]) / 2D;
-                    }
-                }
-                isEven = !isEven;
-            }
-        }
-        return interval;
+    public static GeoPoint decode(final String geohash, GeoPoint ret) {
+        final long hash = org.apache.lucene.util.GeoHashUtils.mortonEncode(geohash);
+        return ret.reset(GeoUtils.mortonUnhashLat(hash), GeoUtils.mortonUnhashLon(hash));
     }
     
     //========== long-based encodings for geohashes ========================================
 
-
-    /**
-     * Encodes latitude and longitude information into a single long with variable precision.
-     * Up to 12 levels of precision are supported which should offer sub-metre resolution.
-     *
-     * @param latitude
-     * @param longitude
-     * @param precision The required precision between 1 and 12
-     * @return A single long where 4 bits are used for holding the precision and the remaining 
-     * 60 bits are reserved for 5 bit cell identifiers giving up to 12 layers. 
-     */
-    public static long encodeAsLong(double latitude, double longitude, int precision) {
-        if((precision>12)||(precision<1))
-        {
-            throw new IllegalArgumentException("Illegal precision length of "+precision+
-                    ". Long-based geohashes only support precisions between 1 and 12");
-        }
-        double latInterval0 = -90.0;
-        double latInterval1 = 90.0;
-        double lngInterval0 = -180.0;
-        double lngInterval1 = 180.0;
-
-        long geohash = 0l;
-        boolean isEven = true;
-
-        int bit = 0;
-        int ch = 0;
-
-        int geohashLength=0;
-        while (geohashLength < precision) {
-            double mid = 0.0;
-            if (isEven) {
-                mid = (lngInterval0 + lngInterval1) / 2D;
-                if (longitude > mid) {
-                    ch |= BITS[bit];
-                    lngInterval0 = mid;
-                } else {
-                    lngInterval1 = mid;
-                }
-            } else {
-                mid = (latInterval0 + latInterval1) / 2D;
-                if (latitude > mid) {
-                    ch |= BITS[bit];
-                    latInterval0 = mid;
-                } else {
-                    latInterval1 = mid;
-                }
-            }
-
-            isEven = !isEven;
-
-            if (bit < 4) {
-                bit++;
-            } else {
-                geohashLength++;
-                geohash|=ch;
-                if(geohashLength<precision){
-                    geohash<<=5;
-                }
-                bit = 0;
-                ch = 0;
-            }
-        }
-        geohash<<=4;
-        geohash|=precision;
-        return geohash;
-    }
-    
-    /**
-     * Formats a geohash held as a long as a more conventional 
-     * String-based geohash
-     * @param geohashAsLong a geohash encoded as a long
-     * @return A traditional base32-based String representation of a geohash 
-     */
-    public static String toString(long geohashAsLong)
-    {
-        int precision = (int) (geohashAsLong&15);
-        char[] chars = new char[precision];
-        geohashAsLong >>= 4;
-        for (int i = precision - 1; i >= 0 ; i--) {
-            chars[i] =  BASE_32[(int) (geohashAsLong & 31)];
-            geohashAsLong >>= 5;
-        }
-        return new String(chars);        
-    }
-
-    
-    
-    public static GeoPoint decode(long geohash) {
-        GeoPoint point = new GeoPoint();
-        decode(geohash, point);
-        return point;
-    }    
-    
-    /**
-     * Decodes the given long-format geohash into a latitude and longitude
-     *
-     * @param geohash long format Geohash to decode
-     * @param ret The Geopoint into which the latitude and longitude will be stored
-     */
-    public static void decode(long geohash, GeoPoint ret) {
-        double[] interval = decodeCell(geohash);
-        ret.reset((interval[0] + interval[1]) / 2D, (interval[2] + interval[3]) / 2D);
-
-    }    
-    
-    private static double[] decodeCell(long geohash) {
-        double[] interval = {-90.0, 90.0, -180.0, 180.0};
-        boolean isEven = true;
-        
-        int precision= (int) (geohash&15);
-        geohash>>=4;
-        int[]cds=new int[precision];
-        for (int i = precision-1; i >=0 ; i--) {            
-            cds[i] = (int) (geohash&31);
-            geohash>>=5;
-        }
-
-        for (int i = 0; i <cds.length ; i++) {            
-            final int cd = cds[i];
-            for (int mask : BITS) {
-                if (isEven) {
-                    if ((cd & mask) != 0) {
-                        interval[2] = (interval[2] + interval[3]) / 2D;
-                    } else {
-                        interval[3] = (interval[2] + interval[3]) / 2D;
-                    }
-                } else {
-                    if ((cd & mask) != 0) {
-                        interval[0] = (interval[0] + interval[1]) / 2D;
-                    } else {
-                        interval[1] = (interval[0] + interval[1]) / 2D;
-                    }
-                }
-                isEven = !isEven;
-            }
-        }
-        return interval;
+    public static GeoPoint decode(long geohashAsLong) {
+        int level = (int)(12 - (geohashAsLong&15));
+        geohashAsLong = GeoUtils.flipFlop((geohashAsLong>>>4)<<((level*5)+2));
+        return new GeoPoint(GeoUtils.mortonUnhashLat(geohashAsLong), GeoUtils.mortonUnhashLon(geohashAsLong));
     }
 }

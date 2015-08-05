@@ -830,7 +830,7 @@ public class ContextSuggestSearchIT extends ESIntegTestCase {
 
         double latitude = 52.22;
         double longitude = 4.53;
-        String geohash = GeoHashUtils.encode(latitude, longitude);
+        String geohash = org.apache.lucene.util.GeoHashUtils.stringEncode(longitude, latitude);
 
         XContentBuilder doc1 = jsonBuilder().startObject().startObject("suggest_geo").field("input", "Hotel Marriot in Amsterdam").startObject("context").startObject("location").field("lat", latitude).field("lon", longitude).endObject().endObject().endObject().endObject();
         index("test", "test", "1", doc1);

@@ -22,6 +22,8 @@ package org.elasticsearch.index.fielddata.plain;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefIterator;
 import org.apache.lucene.util.CharsRefBuilder;
+import org.apache.lucene.util.GeoUtils;
+import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.settings.Settings;
@@ -34,6 +36,21 @@ import org.elasticsearch.search.MultiValueMode;
 import java.io.IOException;
 
 abstract class AbstractIndexGeoPointFieldData extends AbstractIndexFieldData<AtomicGeoPointFieldData> implements IndexGeoPointFieldData {
+    protected static class GeoPointTermsEnum {
+        private final BytesRefIterator termsEnum;
+
+        protected GeoPointTermsEnum(BytesRefIterator termsEnum) {
+            this.termsEnum = termsEnum;
+        }
+
+        public Long next() throws IOException {
+            final BytesRef term = termsEnum.next();
+            if (term == null) {
+                return null;
+            }
+            return NumericUtils.prefixCodedToLong(term);
+        }
+    }
 
     protected static class GeoPointEnum {
 
@@ -52,20 +69,10 @@ abstract class AbstractIndexGeoPointFieldData extends AbstractIndexFieldData<Ato
             if (term == null) {
                 return null;
             }
-            spare.copyUTF8Bytes(term);
-            int commaIndex = -1;
-            for (int i = 0; i < spare.length(); i++) {
-                if (spare.charAt(i) == ',') { // saves a string creation
-                    commaIndex = i;
-                    break;
-                }
-            }
-            if (commaIndex == -1) {
-                assert false;
-                return next.reset(0, 0);
-            }
-            final double lat = Double.parseDouble(new String(spare.chars(), 0, commaIndex));
-            final double lon = Double.parseDouble(new String(spare.chars(), commaIndex + 1, spare.length() - (commaIndex + 1)));
+            final long hashed = NumericUtils.prefixCodedToLong(term);
+            final double lat = GeoUtils.mortonUnhashLat(hashed);
+            final double lon = GeoUtils.mortonUnhashLon(hashed);
+
             return next.reset(lat, lon);
         }
 

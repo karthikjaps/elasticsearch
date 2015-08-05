@@ -18,7 +18,7 @@
  */
 package org.elasticsearch.search.aggregations.support.format;
 
-import org.elasticsearch.common.geo.GeoHashUtils;
+import org.apache.lucene.util.GeoHashUtils;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
@@ -33,7 +33,6 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.util.Locale;
-import java.util.TimeZone;
 
 /**
  * A strategy for formatting time represented as millis long value to string
@@ -246,7 +245,7 @@ public interface ValueFormatter extends Streamable {
 
         @Override
         public String format(long value) {
-            return GeoHashUtils.toString(value);
+            return GeoHashUtils.stringEncode(value);
         }
 
         @Override

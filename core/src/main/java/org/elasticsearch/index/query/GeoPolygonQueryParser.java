@@ -21,6 +21,7 @@ package org.elasticsearch.index.query;
 
 import com.google.common.collect.Lists;
 
+import org.apache.lucene.search.GeoPointInPolygonQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
@@ -34,6 +35,7 @@ import org.elasticsearch.index.mapper.geo.GeoPointFieldMapper;
 import org.elasticsearch.index.search.geo.GeoPolygonQuery;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -140,6 +142,15 @@ public class GeoPolygonQueryParser implements QueryParser {
             }
         }
 
+        double[] lats = new double[shell.size()];
+        double[] lons = new double[shell.size()];
+        GeoPoint p;
+        for(int i=0; i<shell.size(); ++i) {
+            p = shell.get(i);
+            lats[i] = p.lat();
+            lons[i] = p.lon();
+        }
+
         MappedFieldType fieldType = parseContext.fieldMapper(fieldName);
         if (fieldType == null) {
             throw new QueryParsingException(parseContext, "failed to find geo_point field [" + fieldName + "]");
@@ -149,7 +160,10 @@ public class GeoPolygonQueryParser implements QueryParser {
         }
 
         IndexGeoPointFieldData indexFieldData = parseContext.getForField(fieldType);
-        Query query = new GeoPolygonQuery(indexFieldData, shell.toArray(new GeoPoint[shell.size()]));
+//        Query query = new GeoPolygonQuery(indexFieldData, shell.toArray(new GeoPoint[shell.size()]));
+        final String field = indexFieldData.getFieldNames().indexName();
+        GeoPointInPolygonQuery query = new GeoPointInPolygonQuery(field, lons, lats);
+
         if (queryName != null) {
             parseContext.addNamedQuery(queryName, query);
         }

@@ -438,7 +438,7 @@ public class GeoUtilsTests extends ESTestCase {
     @Test
     public void testParseGeoPoint_geohash() throws IOException {
         for (int i = 0; i < 100; i++) {
-            int geoHashLength = randomIntBetween(1, 20);
+            int geoHashLength = randomIntBetween(1, 12);
             StringBuilder geohashBuilder = new StringBuilder(geoHashLength);
             for (int j = 0; j < geoHashLength; j++) {
                 geohashBuilder.append(BASE_32[randomInt(BASE_32.length - 1)]);
@@ -448,7 +448,7 @@ public class GeoUtilsTests extends ESTestCase {
             parser.nextToken();
             GeoPoint point = GeoUtils.parseGeoPoint(parser);
             assertThat(point.lat(), allOf(lessThanOrEqualTo(90.0), greaterThanOrEqualTo(-90.0)));
-            assertThat(point.lon(), allOf(lessThanOrEqualTo(180.0), greaterThan(-180.0)));
+            assertThat(point.lon(), allOf(lessThanOrEqualTo(180.0), greaterThanOrEqualTo(-180.0)));
             jsonBytes = jsonBuilder().startObject().field("geohash", geohashBuilder.toString()).endObject().bytes();
             parser = XContentHelper.createParser(jsonBytes);
             while (parser.currentToken() != Token.VALUE_STRING) {
@@ -456,7 +456,7 @@ public class GeoUtilsTests extends ESTestCase {
             }
             point = GeoUtils.parseGeoPoint(parser);
             assertThat(point.lat(), allOf(lessThanOrEqualTo(90.0), greaterThanOrEqualTo(-90.0)));
-            assertThat(point.lon(), allOf(lessThanOrEqualTo(180.0), greaterThan(-180.0)));
+            assertThat(point.lon(), allOf(lessThanOrEqualTo(180.0), greaterThanOrEqualTo(-180.0)));
         }
     }
 

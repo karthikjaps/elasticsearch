@@ -19,10 +19,10 @@
 
 package org.elasticsearch.search.geo;
 
+import org.apache.lucene.util.GeoHashUtils;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.geo.GeoDistance;
-import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -68,7 +68,8 @@ public class GeoDistanceIT extends ESIntegTestCase {
     public void simpleDistanceTests() throws Exception {
         XContentBuilder xContentBuilder = XContentFactory.jsonBuilder().startObject().startObject("type1")
                 .startObject("properties").startObject("location").field("type", "geo_point").field("lat_lon", true)
-                .startObject("fielddata").field("format", randomNumericFieldDataFormat()).endObject().endObject().endObject()
+                .startObject("fielddata").field("format", randomNumericFieldDataFormat()).endObject().endObject()
+                .endObject()
                 .endObject().endObject();
         assertAcked(prepareCreate("test").addMapping("type1", xContentBuilder));
         ensureGreen();
@@ -235,9 +236,9 @@ public class GeoDistanceIT extends ESIntegTestCase {
         client().prepareIndex("test", "type1", "2").setSource(jsonBuilder().startObject()
                 .field("names", "Times Square", "Tribeca")
                 .startArray("locations")
-                        // to NY: 5.286 km
+                        // to NY: 5.284 km
                 .startObject().field("lat", 40.759011).field("lon", -73.9844722).endObject()
-                        // to NY: 0.4621 km
+                        // to NY: 0.46196 km
                 .startObject().field("lat", 40.718266).field("lon", -74.007819).endObject()
                 .endArray()
                 .endObject()).execute().actionGet();
@@ -414,28 +415,28 @@ public class GeoDistanceIT extends ESIntegTestCase {
                 .actionGet();
         Double resultDistance1 = searchResponse1.getHits().getHits()[0].getFields().get("distance").getValue();
         assertThat(resultDistance1,
-                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.DEFAULT), 0.0001d));
+                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.DEFAULT), 0.01d));
 
         SearchResponse searchResponse2 = client().prepareSearch().addField("_source")
                 .addScriptField("distance", new Script("doc['location'].distance(" + target_lat + "," + target_long + ")")).execute()
                 .actionGet();
         Double resultDistance2 = searchResponse2.getHits().getHits()[0].getFields().get("distance").getValue();
         assertThat(resultDistance2,
-                closeTo(GeoDistance.PLANE.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.DEFAULT), 0.0001d));
+                closeTo(GeoDistance.PLANE.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.DEFAULT), 0.01d));
 
         SearchResponse searchResponse3 = client().prepareSearch().addField("_source")
                 .addScriptField("distance", new Script("doc['location'].arcDistanceInKm(" + target_lat + "," + target_long + ")"))
                 .execute().actionGet();
         Double resultArcDistance3 = searchResponse3.getHits().getHits()[0].getFields().get("distance").getValue();
         assertThat(resultArcDistance3,
-                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.KILOMETERS), 0.0001d));
+                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.KILOMETERS), 0.01d));
 
         SearchResponse searchResponse4 = client().prepareSearch().addField("_source")
                 .addScriptField("distance", new Script("doc['location'].distanceInKm(" + target_lat + "," + target_long + ")")).execute()
                 .actionGet();
         Double resultDistance4 = searchResponse4.getHits().getHits()[0].getFields().get("distance").getValue();
         assertThat(resultDistance4,
-                closeTo(GeoDistance.PLANE.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.KILOMETERS), 0.0001d));
+                closeTo(GeoDistance.PLANE.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.KILOMETERS), 0.01d));
 
         SearchResponse searchResponse5 = client()
                 .prepareSearch()
@@ -444,7 +445,7 @@ public class GeoDistanceIT extends ESIntegTestCase {
                 .execute().actionGet();
         Double resultArcDistance5 = searchResponse5.getHits().getHits()[0].getFields().get("distance").getValue();
         assertThat(resultArcDistance5,
-                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.KILOMETERS), 0.0001d));
+                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.KILOMETERS), 0.01d));
 
         SearchResponse searchResponse6 = client()
                 .prepareSearch()
@@ -453,23 +454,22 @@ public class GeoDistanceIT extends ESIntegTestCase {
                 .execute().actionGet();
         Double resultArcDistance6 = searchResponse6.getHits().getHits()[0].getFields().get("distance").getValue();
         assertThat(resultArcDistance6,
-                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.KILOMETERS), 0.0001d));
+                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.KILOMETERS), 0.01d));
 
         SearchResponse searchResponse7 = client().prepareSearch().addField("_source")
                 .addScriptField("distance", new Script("doc['location'].arcDistanceInMiles(" + target_lat + "," + target_long + ")"))
                 .execute().actionGet();
         Double resultDistance7 = searchResponse7.getHits().getHits()[0].getFields().get("distance").getValue();
         assertThat(resultDistance7,
-                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.MILES), 0.0001d));
+                closeTo(GeoDistance.ARC.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.MILES), 0.01d));
 
         SearchResponse searchResponse8 = client().prepareSearch().addField("_source")
                 .addScriptField("distance", new Script("doc['location'].distanceInMiles(" + target_lat + "," + target_long + ")"))
                 .execute().actionGet();
         Double resultDistance8 = searchResponse8.getHits().getHits()[0].getFields().get("distance").getValue();
         assertThat(resultDistance8,
-                closeTo(GeoDistance.PLANE.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.MILES), 0.0001d));
+                closeTo(GeoDistance.PLANE.calculate(source_lat, source_long, target_lat, target_long, DistanceUnit.MILES), 0.01d));
     }
-
 
     @Test
     public void testDistanceSortingNestedFields() throws Exception {
@@ -646,12 +646,6 @@ public class GeoDistanceIT extends ESIntegTestCase {
                         .startObject("properties")
                             .startObject("pin")
                                 .field("type", "geo_point")
-                                .field("geohash", true)
-                                .field("geohash_precision", 24)
-                                .field("lat_lon", true)
-                                .startObject("fielddata")
-                                    .field("format", randomNumericFieldDataFormat())
-                                .endObject()
                             .endObject()
                         .endObject()
                     .endObject()
@@ -659,7 +653,7 @@ public class GeoDistanceIT extends ESIntegTestCase {
 
         XContentBuilder source = JsonXContent.contentBuilder()
                 .startObject()
-                    .field("pin", GeoHashUtils.encode(lat, lon))
+                    .field("pin", GeoHashUtils.stringEncode(lon, lat))
                 .endObject();
 
         assertAcked(prepareCreate("locations").addMapping("location", mapping));
@@ -699,7 +693,9 @@ public class GeoDistanceIT extends ESIntegTestCase {
         for (int i = 0; i < 10; ++i) {
             final double originLat = randomLat();
             final double originLon = randomLon();
-            final String distance = DistanceUnit.KILOMETERS.toString(randomInt(10000));
+            // TODO: GeoPointTermsEnum.AttributeSource is not persisting geo ranges (SEE: LUCENE-XXXX) this can lead to OOM
+            // as it needs to recompute the ranges, temp fix for now is to reduce the distance size
+            final String distance = DistanceUnit.KILOMETERS.toString(randomInt(1000));
             for (GeoDistance geoDistance : Arrays.asList(GeoDistance.ARC, GeoDistance.SLOPPY_ARC)) {
                 logger.info("Now testing GeoDistance={}, distance={}, origin=({}, {})", geoDistance, distance, originLat, originLon);
                 long matches = -1;

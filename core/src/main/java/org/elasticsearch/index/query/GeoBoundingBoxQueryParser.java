@@ -85,7 +85,7 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
 
         GeoPoint sparse = new GeoPoint();
         
-        String type = "memory";
+        String type = "indexed";
 
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {

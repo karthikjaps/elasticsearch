@@ -28,6 +28,7 @@ import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
 import org.apache.lucene.spatial.query.SpatialArgs;
 import org.apache.lucene.spatial.query.SpatialOperation;
 import org.apache.lucene.spatial.query.UnsupportedSpatialOperation;
+import org.apache.lucene.util.GeoDistanceUtils;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -444,15 +445,18 @@ public class GeoFilterIT extends ESIntegTestCase {
 
         assertHitCount(distance, 5);
         GeoPoint point = new GeoPoint();
+        long pointHash;
         for (SearchHit hit : distance.getHits()) {
             String name = hit.getId();
-            point.resetFromString(hit.fields().get("pin").getValue().toString());
+            pointHash = hit.fields().get("pin").getValue();
+            point.reset(org.apache.lucene.util.GeoUtils.mortonUnhashLat(pointHash),
+                    org.apache.lucene.util.GeoUtils.mortonUnhashLon(pointHash));
             double dist = distance(point.getLat(), point.getLon(), 51.11, 9.851);
 
             assertThat("distance to '" + name + "'", dist, lessThanOrEqualTo(425000d));
             assertThat(name, anyOf(equalTo("CZ"), equalTo("DE"), equalTo("BE"), equalTo("NL"), equalTo("LU")));
             if (key.equals(name)) {
-                assertThat(dist, equalTo(0d));
+                assertThat(dist, closeTo(0d, 0.1d));
             }
         }
     }

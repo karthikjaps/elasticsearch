@@ -159,6 +159,8 @@ public class ExternalMapper extends FieldMapper {
         }
     }
 
+    public static final GeoPoint geoPointTest = new GeoPoint(42.0, 51.0);
+
     private final String generatedValue;
     private final String mapperName;
 
@@ -189,11 +191,8 @@ public class ExternalMapper extends FieldMapper {
 
         boolMapper.parse(context.createExternalValueContext(true));
 
-        // Let's add a Dummy Point
-        Double lat = 42.0;
-        Double lng = 51.0;
-        GeoPoint point = new GeoPoint(lat, lng);
-        pointMapper.parse(context.createExternalValueContext(point));
+        // add a dummy point
+        pointMapper.parse(context.createExternalValueContext(geoPointTest));
 
         // Let's add a Dummy Shape
         Point shape = ShapeBuilder.newPoint(-100, 45).build();

@@ -23,14 +23,15 @@ import com.carrotsearch.hppc.IntHashSet;
 import com.google.common.collect.Lists;
 import org.apache.lucene.analysis.PrefixAnalyzer.PrefixTokenFilter;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.document.GeoPointField;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.automaton.Automata;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.Operations;
 import org.apache.lucene.util.fst.FST;
+import org.apache.lucene.util.GeoHashUtils;
 import org.elasticsearch.ElasticsearchParseException;
-import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.unit.DistanceUnit;
@@ -222,7 +223,7 @@ public class GeolocationContextMapping extends ContextMapping {
                 if(parser.nextToken() == Token.VALUE_NUMBER) {
                     double lat = parser.doubleValue();
                     if(parser.nextToken() == Token.END_ARRAY) {
-                        return Collections.singleton(GeoHashUtils.encode(lat, lon));
+                        return Collections.singleton(GeoHashUtils.stringEncode(lon, lat));
                     } else {
                         throw new ElasticsearchParseException("only two values expected");
                     }
@@ -289,7 +290,7 @@ public class GeolocationContextMapping extends ContextMapping {
      * @return new geolocation query
      */
     public static GeoQuery query(String name, double lat, double lon, int ... precisions) {
-        return query(name, GeoHashUtils.encode(lat, lon), precisions);
+        return query(name, GeoHashUtils.stringEncode(lon, lat), precisions);
     }
 
     public static GeoQuery query(String name, double lat, double lon, String ... precisions) {
@@ -297,7 +298,7 @@ public class GeolocationContextMapping extends ContextMapping {
         for (int i = 0 ; i < precisions.length; i++) {
             precisionInts[i] = GeoUtils.geoHashLevelsForPrecision(precisions[i]);
         }
-        return query(name, GeoHashUtils.encode(lat, lon), precisionInts);
+        return query(name, GeoHashUtils.stringEncode(lon, lat), precisionInts);
     }
 
     /**
@@ -569,7 +570,7 @@ public class GeolocationContextMapping extends ContextMapping {
          * @return this
          */
         public Builder addDefaultLocation(double lat, double lon) {
-            this.defaultLocations.add(GeoHashUtils.encode(lat, lon));
+            this.defaultLocations.add(GeoHashUtils.stringEncode(lon, lat));
             return this;
         }
 
@@ -648,8 +649,11 @@ public class GeolocationContextMapping extends ContextMapping {
                         geohashes = new ArrayList<>(fields.length);
                         GeoPoint spare = new GeoPoint();
                         for (IndexableField field : fields) {
-                            spare.resetFromString(field.stringValue());
-                            geohashes.add(spare.geohash());
+                            // docvalues not supported
+                            if (field instanceof GeoPointField) {
+                                spare.resetFromIndexHash((long) field.numericValue());
+                                geohashes.add(spare.geohash());
+                            }
                         }
                     }
                 } else {
@@ -665,7 +669,7 @@ public class GeolocationContextMapping extends ContextMapping {
                     int precision = Math.min(p, geohash.length());
                     String truncatedGeohash = geohash.substring(0, precision);
                     if(mapping.neighbors) {
-                        GeoHashUtils.addNeighbors(truncatedGeohash, precision, locations);
+                        org.elasticsearch.common.geo.GeoHashUtils.addNeighbors(truncatedGeohash, precision, locations);
                     }
                     locations.add(truncatedGeohash);
                 }

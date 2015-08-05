@@ -22,9 +22,9 @@ import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.carrotsearch.hppc.ObjectIntMap;
 import com.carrotsearch.hppc.cursors.ObjectIntCursor;
 
+import org.apache.lucene.util.GeoUtils;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.GeoBoundingBoxQueryBuilder;
@@ -77,7 +77,7 @@ public class GeoHashGridIT extends ESIntegTestCase {
         createIndex("idx_unmapped");
 
         assertAcked(prepareCreate("idx")
-                .addMapping("type", "location", "type=geo_point", "city", "type=string,index=not_analyzed"));
+                .addMapping("type", "location", "type=geo_point,geohash=true", "city", "type=string,index=not_analyzed"));
 
         List<IndexRequestBuilder> cities = new ArrayList<>();
         Random random = getRandom();
@@ -86,13 +86,14 @@ public class GeoHashGridIT extends ESIntegTestCase {
             //generate random point
             double lat = (180d * random.nextDouble()) - 90d;
             double lng = (360d * random.nextDouble()) - 180d;
-            String randomGeoHash = GeoHashUtils.encode(lat, lng, highestPrecisionGeohash);
+            String randomGeoHash = org.apache.lucene.util.GeoHashUtils.stringEncode(lng, lat, highestPrecisionGeohash);
+            System.out.println(randomGeoHash + " (" + lng + ", " + lat + ")");
             //Index at the highest resolution
             cities.add(indexCity("idx", randomGeoHash, lat + ", " + lng));
             expectedDocCountsForGeoHash.put(randomGeoHash, expectedDocCountsForGeoHash.getOrDefault(randomGeoHash, 0) + 1);
             //Update expected doc counts for all resolutions..
             for (int precision = highestPrecisionGeohash - 1; precision > 0; precision--) {
-                String hash = GeoHashUtils.encode(lat, lng, precision);
+                String hash = org.apache.lucene.util.GeoHashUtils.stringEncode(lng, lat, precision);
                 if ((smallestGeoHash == null) || (hash.length() < smallestGeoHash.length())) {
                     smallestGeoHash = hash;
                 }
@@ -116,7 +117,7 @@ public class GeoHashGridIT extends ESIntegTestCase {
                 points.add(lat + "," + lng);
                 // Update expected doc counts for all resolutions..
                 for (int precision = highestPrecisionGeohash; precision > 0; precision--) {
-                    final String geoHash = GeoHashUtils.encode(lat, lng, precision);
+                    final String geoHash = org.apache.lucene.util.GeoHashUtils.stringEncode(lng, lat, precision);
                     geoHashes.add(geoHash);
                 }
             }
@@ -157,7 +158,7 @@ public class GeoHashGridIT extends ESIntegTestCase {
                 assertEquals("Geohash " + geohash + " has wrong doc count ",
                         expectedBucketCount, bucketCount);
                 GeoPoint geoPoint = (GeoPoint) propertiesKeys[i];
-                assertThat(GeoHashUtils.encode(geoPoint.lat(), geoPoint.lon(), precision), equalTo(geohash));
+                assertThat(org.apache.lucene.util.GeoHashUtils.stringEncode(geoPoint.lon(), geoPoint.lat(), precision), equalTo(geohash));
                 assertThat((long) propertiesDocCounts[i], equalTo(bucketCount));
             }
         }

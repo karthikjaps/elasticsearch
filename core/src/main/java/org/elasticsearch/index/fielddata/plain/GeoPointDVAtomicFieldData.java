@@ -19,27 +19,23 @@
 
 package org.elasticsearch.index.fielddata.plain;
 
-import org.apache.lucene.index.BinaryDocValues;
+import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.ArrayUtil;
-import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.GeoUtils;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.elasticsearch.common.geo.GeoPoint;
-import org.elasticsearch.common.util.ByteUtils;
 import org.elasticsearch.index.fielddata.MultiGeoPointValues;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-final class GeoPointBinaryDVAtomicFieldData extends AbstractAtomicGeoPointFieldData {
+final class GeoPointDVAtomicFieldData extends AbstractAtomicGeoPointFieldData {
 
-    private static final int COORDINATE_SIZE = 8; // number of bytes per coordinate
-    private static final int GEOPOINT_SIZE = COORDINATE_SIZE * 2; // lat + lon
+    private final SortedNumericDocValues values;
 
-    private final BinaryDocValues values;
-
-    GeoPointBinaryDVAtomicFieldData(BinaryDocValues values) {
+    GeoPointDVAtomicFieldData(SortedNumericDocValues values) {
         super();
         this.values = values;
     }
@@ -62,15 +58,14 @@ final class GeoPointBinaryDVAtomicFieldData extends AbstractAtomicGeoPointFieldD
     @Override
     public MultiGeoPointValues getGeoPointValues() {
         return new MultiGeoPointValues() {
-
-            int count;
             GeoPoint[] points = new GeoPoint[0];
+            private int count = 0;
 
             @Override
             public void setDocument(int docId) {
-                final BytesRef bytes = values.get(docId);
-                assert bytes.length % GEOPOINT_SIZE == 0;
-                count = (bytes.length >>> 4);
+                long hash;
+                values.setDocument(docId);
+                count = values.count();
                 if (count > points.length) {
                     final int previousLength = points.length;
                     points = Arrays.copyOf(points, ArrayUtil.oversize(count, RamUsageEstimator.NUM_BYTES_OBJECT_REF));
@@ -78,10 +73,9 @@ final class GeoPointBinaryDVAtomicFieldData extends AbstractAtomicGeoPointFieldD
                         points[i] = new GeoPoint();
                     }
                 }
-                for (int i = 0; i < count; ++i) {
-                    final double lat = ByteUtils.readDoubleLE(bytes.bytes, bytes.offset + i * GEOPOINT_SIZE);
-                    final double lon = ByteUtils.readDoubleLE(bytes.bytes, bytes.offset + i * GEOPOINT_SIZE + COORDINATE_SIZE);
-                    points[i].reset(lat, lon);
+                for (int i=0; i<count; ++i) {
+                    hash = values.valueAt(i);
+                    points[i].reset(GeoUtils.mortonUnhashLat(hash), GeoUtils.mortonUnhashLon(hash));
                 }
             }
 

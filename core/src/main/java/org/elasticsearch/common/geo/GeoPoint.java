@@ -20,6 +20,9 @@
 package org.elasticsearch.common.geo;
 
 
+import org.apache.lucene.util.*;
+import org.apache.lucene.util.GeoUtils;
+
 /**
  *
  */
@@ -27,6 +30,7 @@ public final class GeoPoint {
 
     private double lat;
     private double lon;
+    private final static double TOLERANCE = org.apache.lucene.util.GeoUtils.TOLERANCE;
 
     public GeoPoint() {
     }
@@ -73,6 +77,12 @@ public final class GeoPoint {
         return this;
     }
 
+    public GeoPoint resetFromIndexHash(long hash) {
+        lon = GeoUtils.mortonUnhashLon(hash);
+        lat = GeoUtils.mortonUnhashLat(hash);
+        return this;
+    }
+
     public GeoPoint resetFromGeoHash(String hash) {
         GeoHashUtils.decode(hash, this);
         return this;
@@ -95,11 +105,11 @@ public final class GeoPoint {
     }
 
     public final String geohash() {
-        return GeoHashUtils.encode(lat, lon);
+        return org.apache.lucene.util.GeoHashUtils.stringEncode(lon, lat);
     }
 
     public final String getGeohash() {
-        return GeoHashUtils.encode(lat, lon);
+        return org.apache.lucene.util.GeoHashUtils.stringEncode(lon, lat);
     }
 
     @Override
@@ -107,10 +117,12 @@ public final class GeoPoint {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        GeoPoint geoPoint = (GeoPoint) o;
+        final GeoPoint geoPoint = (GeoPoint) o;
+        final double lonCompare = geoPoint.lon - lon;
+        final double latCompare = geoPoint.lat - lat;
 
-        if (Double.compare(geoPoint.lat, lat) != 0) return false;
-        if (Double.compare(geoPoint.lon, lon) != 0) return false;
+        if ( lonCompare < -TOLERANCE || lonCompare > TOLERANCE) return false;
+        if ( latCompare < -TOLERANCE || latCompare > TOLERANCE) return false;
 
         return true;
     }

@@ -576,7 +576,7 @@ public class DuelFieldDataTests extends AbstractFieldDataTests {
         for (int i = 0; i < numDocs; ++i) {
             leftValues.setDocument(i);
             final int numValues = leftValues.count();
-            rightValues.setDocument(i);;
+            rightValues.setDocument(i);
             assertEquals(numValues, rightValues.count());
             List<GeoPoint> leftPoints = Lists.newArrayList();
             List<GeoPoint> rightPoints = Lists.newArrayList();

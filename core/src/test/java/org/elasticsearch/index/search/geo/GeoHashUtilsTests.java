@@ -19,6 +19,7 @@
 
 package org.elasticsearch.index.search.geo;
 
+import org.apache.lucene.util.GeoUtils;
 import org.elasticsearch.common.geo.GeoHashUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.test.ESTestCase;
@@ -39,10 +40,10 @@ public class GeoHashUtilsTests extends ESTestCase {
      */
     @Test
     public void testEncode() {
-        String hash = GeoHashUtils.encode(42.6, -5.6);
+        String hash = org.apache.lucene.util.GeoHashUtils.stringEncode(-5.6, 42.6, 12);
         assertEquals("ezs42e44yx96", hash);
 
-        hash = GeoHashUtils.encode(57.64911, 10.40744);
+        hash = org.apache.lucene.util.GeoHashUtils.stringEncode(10.40744, 57.64911, 12);
         assertEquals("u4pruydqqvj8", hash);
     }
 
@@ -52,7 +53,7 @@ public class GeoHashUtilsTests extends ESTestCase {
      */
     @Test
     public void testDecodePreciseLongitudeLatitude() {
-        String hash = GeoHashUtils.encode(52.3738007, 4.8909347);
+        String hash = org.apache.lucene.util.GeoHashUtils.stringEncode(4.8909347, 52.3738007);
 
         GeoPoint point = GeoHashUtils.decode(hash);
 
@@ -66,7 +67,7 @@ public class GeoHashUtilsTests extends ESTestCase {
      */
     @Test
     public void testDecodeImpreciseLongitudeLatitude() {
-        String hash = GeoHashUtils.encode(84.6, 10.5);
+        String hash = org.apache.lucene.util.GeoHashUtils.stringEncode(10.5, 84.6);
 
         GeoPoint point = GeoHashUtils.decode(hash);
 
@@ -81,12 +82,12 @@ public class GeoHashUtilsTests extends ESTestCase {
     @Test
     public void testDecodeEncode() {
         String geoHash = "u173zq37x014";
-        assertEquals(geoHash, GeoHashUtils.encode(52.3738007, 4.8909347));
+        assertEquals(geoHash, org.apache.lucene.util.GeoHashUtils.stringEncode(4.8909347, 52.3738007));
         GeoPoint decode = GeoHashUtils.decode(geoHash);
         assertEquals(52.37380061d, decode.lat(), 0.000001d);
         assertEquals(4.8909343d, decode.lon(), 0.000001d);
 
-        assertEquals(geoHash, GeoHashUtils.encode(decode.lat(), decode.lon()));
+        assertEquals(geoHash, org.apache.lucene.util.GeoHashUtils.stringEncode(decode.lon(), decode.lat()));
     }
 
     @Test

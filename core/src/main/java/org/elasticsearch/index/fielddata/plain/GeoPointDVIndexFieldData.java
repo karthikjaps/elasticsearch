@@ -26,7 +26,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.fielddata.*;
 import org.elasticsearch.index.fielddata.IndexFieldData.XFieldComparatorSource.Nested;
-import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.mapper.MappedFieldType.Names;
 import org.elasticsearch.index.mapper.MapperService;
@@ -35,9 +34,9 @@ import org.elasticsearch.search.MultiValueMode;
 
 import java.io.IOException;
 
-public class GeoPointBinaryDVIndexFieldData extends DocValuesIndexFieldData implements IndexGeoPointFieldData {
+public class GeoPointDVIndexFieldData extends DocValuesIndexFieldData implements IndexGeoPointFieldData {
 
-    public GeoPointBinaryDVIndexFieldData(Index index, Names fieldNames, FieldDataType fieldDataType) {
+    public GeoPointDVIndexFieldData(Index index, Names fieldNames, FieldDataType fieldDataType) {
         super(index, fieldNames, fieldDataType);
     }
 
@@ -49,7 +48,7 @@ public class GeoPointBinaryDVIndexFieldData extends DocValuesIndexFieldData impl
     @Override
     public AtomicGeoPointFieldData load(LeafReaderContext context) {
         try {
-            return new GeoPointBinaryDVAtomicFieldData(DocValues.getBinary(context.reader(), fieldNames.indexName()));
+            return new GeoPointDVAtomicFieldData(DocValues.getSortedNumeric(context.reader(), fieldNames.indexName()));
         } catch (IOException e) {
             throw new IllegalStateException("Cannot load doc values", e);
         }
@@ -67,7 +66,7 @@ public class GeoPointBinaryDVIndexFieldData extends DocValuesIndexFieldData impl
                                        CircuitBreakerService breakerService, MapperService mapperService) {
             // Ignore breaker
             final Names fieldNames = fieldType.names();
-            return new GeoPointBinaryDVIndexFieldData(index, fieldNames, fieldType.fieldDataType());
+            return new GeoPointDVIndexFieldData(index, fieldNames, fieldType.fieldDataType());
         }
 
     }
