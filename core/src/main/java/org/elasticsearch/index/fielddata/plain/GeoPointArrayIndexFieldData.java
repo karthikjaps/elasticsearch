@@ -134,7 +134,7 @@ public class GeoPointArrayIndexFieldData extends AbstractIndexGeoPointFieldData 
         final float acceptableTransientOverheadRatio = fieldDataType.getSettings().getAsFloat("acceptable_transient_overhead_ratio", OrdinalsBuilder.DEFAULT_ACCEPTABLE_OVERHEAD_RATIO);
         boolean success = false;
         try (OrdinalsBuilder builder = new OrdinalsBuilder(terms.size(), reader.maxDoc(), acceptableTransientOverheadRatio)) {
-            final AbstractIndexGeoPointFieldDataLegacy.GeoPointEnum iter = new AbstractIndexGeoPointFieldDataLegacy.GeoPointEnum(builder.buildFromTerms(terms.iterator()));
+            final GeoPointTermsEnumLegacy iter = new GeoPointTermsEnumLegacy(builder.buildFromTerms(terms.iterator()));
             GeoPoint point;
             long numTerms = 0;
             while ((point = iter.next()) != null) {
