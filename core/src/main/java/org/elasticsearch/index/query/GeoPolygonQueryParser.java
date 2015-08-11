@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 
 import org.apache.lucene.search.GeoPointInPolygonQuery;
 import org.apache.lucene.search.Query;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.inject.Inject;
@@ -31,6 +32,7 @@ import org.elasticsearch.common.xcontent.XContentParser.Token;
 import org.elasticsearch.index.fielddata.IndexGeoPointFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.index.mapper.geo.BaseGeoPointFieldMapper;
 import org.elasticsearch.index.mapper.geo.GeoPointFieldMapper;
 import org.elasticsearch.index.search.geo.GeoPolygonQuery;
 
@@ -72,6 +74,7 @@ public class GeoPolygonQueryParser implements QueryParser {
 
         List<GeoPoint> shell = Lists.newArrayList();
 
+        boolean bwc = !parseContext.indexVersionCreated().onOrAfter(Version.V_2_0_0_beta1);
         boolean normalizeLon = true;
         boolean normalizeLat = true;
 
@@ -155,14 +158,16 @@ public class GeoPolygonQueryParser implements QueryParser {
         if (fieldType == null) {
             throw new QueryParsingException(parseContext, "failed to find geo_point field [" + fieldName + "]");
         }
-        if (!(fieldType instanceof GeoPointFieldMapper.GeoPointFieldType)) {
+
+        if (!(fieldType instanceof BaseGeoPointFieldMapper.BaseGeoPointFieldType)) {
             throw new QueryParsingException(parseContext, "field [" + fieldName + "] is not a geo_point field");
         }
 
         IndexGeoPointFieldData indexFieldData = parseContext.getForField(fieldType);
-//        Query query = new GeoPolygonQuery(indexFieldData, shell.toArray(new GeoPoint[shell.size()]));
         final String field = indexFieldData.getFieldNames().indexName();
-        GeoPointInPolygonQuery query = new GeoPointInPolygonQuery(field, lons, lats);
+
+        Query query = (bwc) ? new GeoPolygonQuery(indexFieldData, shell.toArray(new GeoPoint[shell.size()]))
+                :  new GeoPointInPolygonQuery(field, lons, lats);
 
         if (queryName != null) {
             parseContext.addNamedQuery(queryName, query);
