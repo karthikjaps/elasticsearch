@@ -19,15 +19,19 @@
 
 package org.elasticsearch.index.query;
 
+import org.apache.lucene.search.GeoPointInBBoxQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.ElasticsearchParseException;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexGeoPointFieldData;
 import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.index.mapper.geo.BaseGeoPointFieldMapper;
 import org.elasticsearch.index.mapper.geo.GeoPointFieldMapper;
+import org.elasticsearch.index.mapper.geo.GeoPointFieldMapperLegacy;
 import org.elasticsearch.index.search.geo.InMemoryGeoBoundingBoxQuery;
 import org.elasticsearch.index.search.geo.IndexedGeoBoundingBoxQuery;
 
@@ -80,11 +84,12 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
         String queryName = null;
         String currentFieldName = null;
         XContentParser.Token token;
+        final boolean bwc = parseContext.indexVersionCreated().before(Version.V_2_0_0_beta1);
         boolean normalize = true;
 
         GeoPoint sparse = new GeoPoint();
         
-        String type = "indexed";
+        String type = "memory";
 
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
@@ -139,7 +144,11 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
                 } else if ("normalize".equals(currentFieldName)) {
                     normalize = parser.booleanValue();
                 } else if ("type".equals(currentFieldName)) {
-                    type = parser.text();
+                    if (bwc) {
+                        type = parser.text();
+                    } else {
+                        throw new ElasticsearchParseException("[type] is deprecated for [{}] queries", NAME);
+                    }
                 } else {
                     throw new QueryParsingException(parseContext, "failed to parse [{}] query. unexpected field [{}]", NAME, currentFieldName);
                 }
@@ -149,7 +158,7 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
         final GeoPoint topLeft = sparse.reset(top, left);  //just keep the object
         final GeoPoint bottomRight = new GeoPoint(bottom, right);
 
-        if (normalize) {
+        if (!bwc || normalize) {
             // Special case: if the difference bettween the left and right is 360 and the right is greater than the left, we are asking for 
             // the complete longitude range so need to set longitude to the complete longditude range
             boolean completeLonRange = ((right - left) % 360 == 0 && right > left);
@@ -165,24 +174,26 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
         if (fieldType == null) {
             throw new QueryParsingException(parseContext, "failed to parse [{}] query. could not find [{}] field [{}]", NAME, GeoPointFieldMapper.CONTENT_TYPE, fieldName);
         }
-        if (!(fieldType instanceof GeoPointFieldMapper.GeoPointFieldType)) {
+
+        if (!(fieldType instanceof BaseGeoPointFieldMapper.BaseGeoPointFieldType)) {
             throw new QueryParsingException(parseContext, "failed to parse [{}] query. field [{}] is expected to be of type [{}], but is of [{}] type instead", NAME, fieldName, GeoPointFieldMapper.CONTENT_TYPE, fieldType.typeName());
         }
-        GeoPointFieldMapper.GeoPointFieldType geoFieldType = ((GeoPointFieldMapper.GeoPointFieldType) fieldType);
 
-        Query filter;
-        if ("indexed".equals(type)) {
-            filter = IndexedGeoBoundingBoxQuery.create(topLeft, bottomRight, geoFieldType);
+        Query query;
+        if (!bwc) {
+           query = new GeoPointInBBoxQuery(fieldType.names().fullName(), topLeft.lon(), bottomRight.lat(), bottomRight.lon(), topLeft.lat());
+        } else if ("indexed".equals(type)) {
+            query = IndexedGeoBoundingBoxQuery.create(topLeft, bottomRight, (GeoPointFieldMapperLegacy.GeoPointFieldType) fieldType);
         } else if ("memory".equals(type)) {
             IndexGeoPointFieldData indexFieldData = parseContext.getForField(fieldType);
-            filter = new InMemoryGeoBoundingBoxQuery(topLeft, bottomRight, indexFieldData);
+            query = new InMemoryGeoBoundingBoxQuery(topLeft, bottomRight, indexFieldData);
         } else {
             throw new QueryParsingException(parseContext, "failed to parse [{}] query. geo bounding box type [{}] is not supported. either [indexed] or [memory] are allowed", NAME, type);
         }
 
         if (queryName != null) {
-            parseContext.addNamedQuery(queryName, filter);
+            parseContext.addNamedQuery(queryName, query);
         }
-        return filter;
+        return query;
     }    
 }

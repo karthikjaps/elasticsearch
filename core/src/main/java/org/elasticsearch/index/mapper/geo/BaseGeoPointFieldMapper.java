@@ -212,7 +212,7 @@ public abstract class BaseGeoPointFieldMapper extends FieldMapper {
         }
     }
 
-    abstract static class BaseGeoPointFieldType extends MappedFieldType {
+    public abstract static class BaseGeoPointFieldType extends MappedFieldType {
         protected MappedFieldType geohashFieldType;
         protected int geohashPrecision;
         protected boolean geohashPrefixEnabled;
