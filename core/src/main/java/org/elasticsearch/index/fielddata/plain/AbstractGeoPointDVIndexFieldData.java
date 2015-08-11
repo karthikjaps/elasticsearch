@@ -21,6 +21,7 @@ package org.elasticsearch.index.fielddata.plain;
 
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.DocValues;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.Index;
@@ -38,9 +39,9 @@ import org.elasticsearch.search.MultiValueMode;
 
 import java.io.IOException;
 
-public class GeoPointDVIndexFieldData extends DocValuesIndexFieldData implements IndexGeoPointFieldData {
+public abstract class AbstractGeoPointDVIndexFieldData extends DocValuesIndexFieldData implements IndexGeoPointFieldData {
 
-    public GeoPointDVIndexFieldData(Index index, Names fieldNames, FieldDataType fieldDataType) {
+    AbstractGeoPointDVIndexFieldData(Index index, Names fieldNames, FieldDataType fieldDataType) {
         super(index, fieldNames, fieldDataType);
     }
 
@@ -49,29 +50,40 @@ public class GeoPointDVIndexFieldData extends DocValuesIndexFieldData implements
         throw new IllegalArgumentException("can't sort on geo_point field without using specific sorting feature, like geo_distance");
     }
 
-    @Override
-    public AtomicGeoPointFieldData load(LeafReaderContext context) {
-        try {
-            return new GeoPointDVAtomicFieldData(DocValues.getSortedNumeric(context.reader(), fieldNames.indexName()));
-        } catch (IOException e) {
-            throw new IllegalStateException("Cannot load doc values", e);
+    /**
+     * 2.0 Lucene GeoPointFieldType
+     */
+    public static class GeoPointDVIndexFieldData extends AbstractGeoPointDVIndexFieldData {
+        final boolean bwc;
+
+        public GeoPointDVIndexFieldData(Index index, Names fieldNames, FieldDataType fieldDataType, final boolean bwc) {
+            super(index, fieldNames, fieldDataType);
+            this.bwc = bwc;
+        }
+
+        @Override
+        public AtomicGeoPointFieldData load(LeafReaderContext context) {
+            try {
+                return (bwc) ? new GeoPointLegacyDVAtomicFieldData(DocValues.getBinary(context.reader(), fieldNames.indexName())) :
+                        new GeoPointDVAtomicFieldData(DocValues.getSortedNumeric(context.reader(), fieldNames.indexName()));
+            } catch (IOException e) {
+                throw new IllegalStateException("Cannot load doc values", e);
+            }
+        }
+
+        @Override
+        public AtomicGeoPointFieldData loadDirect(LeafReaderContext context) throws Exception {
+            return load(context);
         }
     }
 
-    @Override
-    public AtomicGeoPointFieldData loadDirect(LeafReaderContext context) throws Exception {
-        return load(context);
-    }
-
     public static class Builder implements IndexFieldData.Builder {
-
         @Override
         public IndexFieldData<?> build(Index index, Settings indexSettings, MappedFieldType fieldType, IndexFieldDataCache cache,
                                        CircuitBreakerService breakerService, MapperService mapperService) {
             // Ignore breaker
-            final Names fieldNames = fieldType.names();
-            return new GeoPointDVIndexFieldData(index, fieldNames, fieldType.fieldDataType());
+            return new GeoPointDVIndexFieldData(index, fieldType.names(), fieldType.fieldDataType(),
+                    Version.indexCreated(indexSettings).before(Version.V_2_0_0_beta1));
         }
-
     }
 }

@@ -21,6 +21,8 @@ package org.elasticsearch.index.query;
 
 import org.apache.lucene.search.GeoPointDistanceRangeQuery;
 import org.apache.lucene.search.Query;
+import org.elasticsearch.ElasticsearchParseException;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.geo.GeoDistance;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
@@ -29,7 +31,10 @@ import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexGeoPointFieldData;
 import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.index.mapper.geo.BaseGeoPointFieldMapper;
 import org.elasticsearch.index.mapper.geo.GeoPointFieldMapper;
+import org.elasticsearch.index.mapper.geo.GeoPointFieldMapperLegacy;
+import org.elasticsearch.index.search.geo.GeoDistanceRangeQuery;
 
 import java.io.IOException;
 
@@ -70,6 +75,7 @@ public class GeoDistanceRangeQueryParser implements QueryParser {
         boolean includeUpper = true;
         DistanceUnit unit = DistanceUnit.DEFAULT;
         GeoDistance geoDistance = GeoDistance.DEFAULT;
+        boolean bwc = !parseContext.indexVersionCreated().onOrAfter(Version.V_2_0_0_beta1);
         String optimizeBbox = "memory";
         boolean normalizeLon = true;
         boolean normalizeLat = true;
@@ -152,7 +158,11 @@ public class GeoDistanceRangeQueryParser implements QueryParser {
                 } else if ("_name".equals(currentFieldName)) {
                     queryName = parser.text();
                 } else if ("optimize_bbox".equals(currentFieldName) || "optimizeBbox".equals(currentFieldName)) {
-                    optimizeBbox = parser.textOrNull();
+                    if (bwc) {
+                        optimizeBbox = parser.textOrNull();
+                    } else {
+                        throw new ElasticsearchParseException("[" + currentFieldName + "] is deprecated");
+                    }
                 } else if ("normalize".equals(currentFieldName)) {
                     normalizeLat = parser.booleanValue();
                     normalizeLon = parser.booleanValue();
@@ -190,10 +200,9 @@ public class GeoDistanceRangeQueryParser implements QueryParser {
         if (fieldType == null) {
             throw new QueryParsingException(parseContext, "failed to find geo_point field [" + fieldName + "]");
         }
-        if (!(fieldType instanceof GeoPointFieldMapper.GeoPointFieldType)) {
+        if (!(fieldType instanceof BaseGeoPointFieldMapper.BaseGeoPointFieldType)) {
             throw new QueryParsingException(parseContext, "field [" + fieldName + "] is not a geo_point field");
         }
-        GeoPointFieldMapper.GeoPointFieldType geoFieldType = ((GeoPointFieldMapper.GeoPointFieldType) fieldType);
 
         IndexGeoPointFieldData indexFieldData = parseContext.getForField(fieldType);
 
@@ -205,10 +214,9 @@ public class GeoDistanceRangeQueryParser implements QueryParser {
             to = new Double(GeoUtils.EARTH_SEMI_MINOR_AXIS);
         }
 
-        Query query = new GeoPointDistanceRangeQuery(indexFieldData.getFieldNames().indexName(), point.lon(), point.lat(),
-                (includeLower) ? from : from+1, (includeUpper) ? to : to-1 );
-//        Query query = new GeoDistanceRangeQuery(point, from, to, includeLower, includeUpper, geoDistance, geoFieldType, indexFieldData,
-//                optimizeBbox);
+        Query query = (bwc) ? new GeoDistanceRangeQuery(point, from, to, includeLower, includeUpper, geoDistance, (GeoPointFieldMapperLegacy.GeoPointFieldType)fieldType, indexFieldData, optimizeBbox) :
+                new GeoPointDistanceRangeQuery(indexFieldData.getFieldNames().indexName(), point.lon(), point.lat(), (includeLower) ? from : from+1, (includeUpper) ? to : to-1 );
+
         if (queryName != null) {
             parseContext.addNamedQuery(queryName, query);
         }

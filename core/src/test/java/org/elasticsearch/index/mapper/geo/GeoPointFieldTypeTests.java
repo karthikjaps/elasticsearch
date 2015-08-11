@@ -31,7 +31,7 @@ public class GeoPointFieldTypeTests extends FieldTypeTestCase {
 
     @Override
     protected int numProperties() {
-        return 6 + super.numProperties();
+        return 2 + super.numProperties();
     }
 
     @Override
@@ -39,12 +39,8 @@ public class GeoPointFieldTypeTests extends FieldTypeTestCase {
         GeoPointFieldMapper.GeoPointFieldType gft = (GeoPointFieldMapper.GeoPointFieldType)ft;
         switch (propNum) {
             case 0: gft.setGeohashEnabled(new StringFieldMapper.StringFieldType(), 1, true); break;
-            case 1: gft.setLatLonEnabled(new DoubleFieldMapper.DoubleFieldType(), new DoubleFieldMapper.DoubleFieldType()); break;
-            case 2: gft.setValidateLon(!gft.validateLon()); break;
-            case 3: gft.setValidateLat(!gft.validateLat()); break;
-            case 4: gft.setNormalizeLon(!gft.normalizeLon()); break;
-            case 5: gft.setNormalizeLat(!gft.normalizeLat()); break;
-            default: super.modifyProperty(ft, propNum - 6);
+            case 1: gft.setIgnoreMalformed(!gft.ignoreMalformed()); break;
+            default: super.modifyProperty(ft, propNum - 2);
         }
     }
 }

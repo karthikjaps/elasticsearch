@@ -88,7 +88,7 @@ public class IndexFieldDataService extends AbstractIndexComponent {
                 .put("short", new DocValuesIndexFieldData.Builder().numericType(IndexNumericFieldData.NumericType.SHORT))
                 .put("int", new DocValuesIndexFieldData.Builder().numericType(IndexNumericFieldData.NumericType.INT))
                 .put("long", new DocValuesIndexFieldData.Builder().numericType(IndexNumericFieldData.NumericType.LONG))
-                .put("geo_point", new GeoPointDVIndexFieldData.Builder())
+                .put("geo_point", new AbstractGeoPointDVIndexFieldData.Builder())
                 .put("binary", new BytesBinaryDVIndexFieldData.Builder())
                 .put(BooleanFieldMapper.CONTENT_TYPE, new DocValuesIndexFieldData.Builder().numericType(IndexNumericFieldData.NumericType.BOOLEAN))
                 .immutableMap();
@@ -123,7 +123,7 @@ public class IndexFieldDataService extends AbstractIndexComponent {
                 .put(Tuple.tuple("long", DISABLED_FORMAT), new DisabledIndexFieldData.Builder())
 
                 .put(Tuple.tuple("geo_point", ARRAY_FORMAT), new GeoPointArrayIndexFieldData.Builder())
-                .put(Tuple.tuple("geo_point", DOC_VALUES_FORMAT), new GeoPointDVIndexFieldData.Builder())
+                .put(Tuple.tuple("geo_point", DOC_VALUES_FORMAT), new AbstractGeoPointDVIndexFieldData.Builder())
                 .put(Tuple.tuple("geo_point", DISABLED_FORMAT), new DisabledIndexFieldData.Builder())
 
                 .put(Tuple.tuple("binary", DOC_VALUES_FORMAT), new BytesBinaryDVIndexFieldData.Builder())

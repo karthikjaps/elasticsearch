@@ -41,13 +41,22 @@ public final class GeoPointDistanceRangeQuery extends GeoPointDistanceQuery {
       return q;
     }
 
+    final double radius;
+    if (q instanceof BooleanQuery) {
+      final BooleanClause[] clauses = ((BooleanQuery)q).getClauses();
+      assert clauses.length > 0;
+      radius = ((GeoPointDistanceQueryImpl)(clauses[0].getQuery())).getRadius();
+    } else {
+      radius = ((GeoPointDistanceQueryImpl)q).getRadius();
+    }
+
     // add an exclusion query
     BooleanQuery bqb = new BooleanQuery();
 
     // create a new exclusion query
     GeoPointDistanceQuery exclude = new GeoPointDistanceQuery(field, centerLon, centerLat, minRadius);
     // full map search
-    if (((GeoPointDistanceQueryImpl)q).getRadius() == GeoUtils.EARTH_SEMI_MINOR_AXIS) {
+    if (radius >= GeoUtils.EARTH_SEMI_MINOR_AXIS) {
       bqb.add(new BooleanClause(new GeoPointInBBoxQuery(this.field, -180.0, -90.0, 180.0, 90.0), BooleanClause.Occur.SHOULD));
     } else {
       bqb.add(new BooleanClause(q, BooleanClause.Occur.SHOULD));
