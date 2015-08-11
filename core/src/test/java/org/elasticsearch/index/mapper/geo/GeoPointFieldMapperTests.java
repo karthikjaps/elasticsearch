@@ -146,8 +146,8 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     public void testNormalizeLatLonValuesDefault() throws Exception {
         // default to normalize
         String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").endObject().endObject()
-                .endObject().endObject().string();
+                .startObject("properties").startObject("point").field("type", "geo_point").field("ignore_malformed", true).endObject()
+                .endObject().endObject().endObject().string();
 
         DocumentMapper defaultMapper = createIndex("test").mapperService().documentMapperParser().parse(mapping);
 
@@ -182,7 +182,7 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     @Test
     public void testValidateLatLonValues() throws Exception {
         String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("normalize", false).field("validate", true).endObject().endObject()
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).endObject().endObject()
                 .endObject().endObject().string();
 
         DocumentMapper defaultMapper = createIndex("test").mapperService().documentMapperParser().parse(mapping);
@@ -242,8 +242,8 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     @Test
     public void testNoValidateLatLonValues() throws Exception {
         String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("normalize", false).field("validate", false).endObject().endObject()
-                .endObject().endObject().string();
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true)
+                .field("ignore_malformed", true).endObject().endObject().endObject().endObject().string();
 
         DocumentMapper defaultMapper = createIndex("test").mapperService().documentMapperParser().parse(mapping);
 

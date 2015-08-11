@@ -358,7 +358,7 @@ public abstract class BaseGeoPointFieldMapper extends FieldMapper {
 
         if (fieldType().isGeohashEnabled()) {
             if (geohash == null) {
-                geohash = GeoHashUtils.stringEncode(point.lat(), point.lon());
+                geohash = GeoHashUtils.stringEncode(point.lon(), point.lat());
             }
             addGeohashField(context, geohash);
         }
