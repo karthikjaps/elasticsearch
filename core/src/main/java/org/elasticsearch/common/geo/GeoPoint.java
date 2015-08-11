@@ -20,6 +20,8 @@
 package org.elasticsearch.common.geo;
 
 
+import org.apache.lucene.document.GeoPointField;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.GeoHashUtils;
 import org.apache.lucene.util.GeoUtils;
 
@@ -48,6 +50,16 @@ public final class GeoPoint {
     public GeoPoint(double lat, double lon) {
         this.lat = lat;
         this.lon = lon;
+    }
+
+    public GeoPoint(IndexableField fieldData) {
+        if (fieldData instanceof GeoPointField) {
+            this.lat = ((GeoPointField) (fieldData)).getLat();
+            this.lon = ((GeoPointField) fieldData).getLon();
+        } else {
+            throw new IllegalArgumentException("found an instance of  " + fieldData.getClass()
+            + " when expecting an instance of " + GeoPointField.class);
+        }
     }
 
     public GeoPoint reset(double lat, double lon) {
@@ -162,5 +174,9 @@ public final class GeoPoint {
 
     public static GeoPoint fromGeohashLong(long geohashLong) {
         return new GeoPoint().resetFromGeohashLong(geohashLong);
+    }
+
+    public static GeoPoint fromIndexLong(long indexLong) {
+        return new GeoPoint().resetFromIndexHash(indexLong);
     }
 }

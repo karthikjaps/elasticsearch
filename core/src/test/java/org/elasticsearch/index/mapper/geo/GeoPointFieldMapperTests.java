@@ -18,8 +18,10 @@
  */
 package org.elasticsearch.index.mapper.geo;
 
+import org.apache.lucene.document.GeoPointField;
 import org.apache.lucene.util.GeoUtils;
 import org.apache.lucene.util.GeoHashUtils;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.DocumentMapperParser;
@@ -83,7 +85,7 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     @Test
     public void testLatLonInOneValueWithGeohash() throws Exception {
         String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true).endObject().endObject()
+                .startObject("properties").startObject("point").field("type", "geo_point").field("geohash", true).endObject().endObject()
                 .endObject().endObject().string();
 
         DocumentMapper defaultMapper = createIndex("test").mapperService().documentMapperParser().parse(mapping);
@@ -94,8 +96,10 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
                 .endObject()
                 .bytes());
 
-        assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
-        assertThat(doc.rootDoc().getField("point.lon"), notNullValue());
+        GeoPointField geoPointField = (GeoPointField)(doc.rootDoc().getField("point"));
+        assertThat(geoPointField, notNullValue());
+        assertThat(geoPointField.getLon(), closeTo(1.3, GeoUtils.TOLERANCE));
+        assertThat(geoPointField.getLat(), closeTo(1.2, GeoUtils.TOLERANCE));
         assertThat(doc.rootDoc().get("point.geohash"), equalTo(GeoHashUtils.stringEncode(1.3, 1.2)));
     }
 
@@ -121,7 +125,7 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     @Test
     public void testGeoHashValue() throws Exception {
         String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).endObject().endObject()
+                .startObject("properties").startObject("point").field("type", "geo_point").endObject().endObject()
                 .endObject().endObject().string();
 
         DocumentMapper defaultMapper = createIndex("test").mapperService().documentMapperParser().parse(mapping);
@@ -131,10 +135,11 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
                 .field("point", GeoHashUtils.stringEncode(1.3, 1.2))
                 .endObject()
                 .bytes());
+        GeoPoint pt = new GeoPoint(doc.rootDoc().getField("point"));
 
-        assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
-        assertThat(doc.rootDoc().getField("point.lon"), notNullValue());
-        assertThat(doc.rootDoc().get("point"), notNullValue());
+        assertThat(pt, notNullValue());
+        assertThat(pt.getLon(), closeTo(1.3, GeoUtils.TOLERANCE));
+        assertThat(pt.getLat(), closeTo(1.2, GeoUtils.TOLERANCE));
     }
 
     @Test
@@ -491,14 +496,14 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     @Test
     public void testGeoPointMapperMerge() throws Exception {
         String stage1Mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
-                .field("validate", true).endObject().endObject()
+                .startObject("properties").startObject("point").field("type", "geo_point").field("geohash", true)
+                .field("ignore_malformed", true).endObject().endObject()
                 .endObject().endObject().string();
         DocumentMapperParser parser = createIndex("test").mapperService().documentMapperParser();
         DocumentMapper stage1 = parser.parse(stage1Mapping);
         String stage2Mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
-                .field("validate", false).endObject().endObject()
+                .startObject("properties").startObject("point").field("type", "geo_point").field("geohash", false)
+                .field("ignore_malformed", false).endObject().endObject()
                 .endObject().endObject().string();
         DocumentMapper stage2 = parser.parse(stage2Mapping);
 
@@ -506,12 +511,12 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
         assertThat(mergeResult.hasConflicts(), equalTo(true));
         assertThat(mergeResult.buildConflicts().length, equalTo(2));
         // todo better way of checking conflict?
-        assertThat("mapper [point] has different validate_lat", isIn(new ArrayList<>(Arrays.asList(mergeResult.buildConflicts()))));
+        assertThat("mapper [point] has different geohash", isIn(new ArrayList<>(Arrays.asList(mergeResult.buildConflicts()))));
 
         // correct mapping and ensure no failures
         stage2Mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
-                .field("validate", true).field("normalize", true).endObject().endObject()
+                .startObject("properties").startObject("point").field("type", "geo_point").field("geohash", true)
+                .field("ignore_malformed", true).endObject().endObject()
                 .endObject().endObject().string();
         stage2 = parser.parse(stage2Mapping);
         mergeResult = stage1.merge(stage2.mapping(), false, false);

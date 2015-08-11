@@ -22,7 +22,6 @@ package org.elasticsearch.index.fielddata.plain;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefIterator;
 import org.apache.lucene.util.CharsRefBuilder;
-import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.settings.Settings;
@@ -34,35 +33,14 @@ import org.elasticsearch.search.MultiValueMode;
 
 import java.io.IOException;
 
-abstract class AbstractIndexGeoPointFieldData extends AbstractIndexFieldData<AtomicGeoPointFieldData> implements IndexGeoPointFieldData {
-    protected abstract static class BaseGeoPointTermsEnum {
-        protected final BytesRefIterator termsEnum;
-
-        protected BaseGeoPointTermsEnum(BytesRefIterator termsEnum) {
-            this.termsEnum = termsEnum;
-        }
-    }
-
-    protected static class GeoPointTermsEnum extends BaseGeoPointTermsEnum {
-        protected GeoPointTermsEnum(BytesRefIterator termsEnum) {
-            super(termsEnum);
-        }
-
-        public Long next() throws IOException {
-            final BytesRef term = termsEnum.next();
-            if (term == null) {
-                return null;
-            }
-            return NumericUtils.prefixCodedToLong(term);
-        }
-    }
-
-    protected static class GeoPointTermsEnumLegacy extends BaseGeoPointTermsEnum {
+abstract class AbstractIndexGeoPointFieldDataLegacy extends AbstractIndexFieldData<AtomicGeoPointFieldData> implements IndexGeoPointFieldData {
+    protected static class GeoPointEnum {
+        private final BytesRefIterator termsEnum;
         private final GeoPoint next;
         private final CharsRefBuilder spare;
 
-        protected GeoPointTermsEnumLegacy(BytesRefIterator termsEnum) {
-            super(termsEnum);
+        protected GeoPointEnum(BytesRefIterator termsEnum) {
+            this.termsEnum = termsEnum;
             next = new GeoPoint();
             spare = new CharsRefBuilder();
         }
@@ -88,9 +66,10 @@ abstract class AbstractIndexGeoPointFieldData extends AbstractIndexFieldData<Ato
             final double lon = Double.parseDouble(new String(spare.chars(), commaIndex + 1, spare.length() - (commaIndex + 1)));
             return next.reset(lat, lon);
         }
+
     }
 
-    public AbstractIndexGeoPointFieldData(Index index, Settings indexSettings, Names fieldNames, FieldDataType fieldDataType, IndexFieldDataCache cache) {
+    public AbstractIndexGeoPointFieldDataLegacy(Index index, Settings indexSettings, Names fieldNames, FieldDataType fieldDataType, IndexFieldDataCache cache) {
         super(index, indexSettings, fieldNames, fieldDataType, cache);
     }
 
@@ -103,4 +82,5 @@ abstract class AbstractIndexGeoPointFieldData extends AbstractIndexFieldData<Ato
     protected AtomicGeoPointFieldData empty(int maxDoc) {
         return AbstractAtomicGeoPointFieldData.empty(maxDoc);
     }
+
 }
