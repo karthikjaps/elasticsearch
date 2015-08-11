@@ -56,7 +56,7 @@ public class TransportIndexFailuresIT extends ESIntegTestCase {
             .put(FaultDetection.SETTING_PING_RETRIES, "1") // <-- for hitting simulated network failures quickly
             .put(DiscoverySettings.PUBLISH_TIMEOUT, "1s") // <-- for hitting simulated network failures quickly
             .put("discovery.zen.minimum_master_nodes", 1)
-            .put(TransportModule.TRANSPORT_SERVICE_TYPE_KEY, MockTransportService.class.getName())
+            .put("plugin.types", MockTransportService.Plugin.class.getName())
             .build();
 
     @Override
@@ -133,7 +133,7 @@ public class TransportIndexFailuresIT extends ESIntegTestCase {
                 client().prepareGet(INDEX, "doc", resp.getId()).get().isExists(), equalTo(true));
 
         state = getNodeClusterState(randomFrom(nodes.toArray(Strings.EMPTY_ARRAY)));
-        RoutingNodes rn = state.routingNodes();
+        RoutingNodes rn = state.getRoutingNodes();
         logger.info("--> counts: total: {}, unassigned: {}, initializing: {}, relocating: {}, started: {}",
                 rn.shards(new Predicate<ShardRouting>() {
                     @Override

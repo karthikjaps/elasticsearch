@@ -32,6 +32,7 @@ import org.elasticsearch.cluster.block.ClusterBlockLevel;
 import org.elasticsearch.cluster.node.DiscoveryNodeFilters;
 import org.elasticsearch.cluster.routing.HashFunction;
 import org.elasticsearch.cluster.routing.Murmur3HashFunction;
+import org.elasticsearch.common.Classes;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.ParseFieldMatcher;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -174,6 +175,7 @@ public class IndexMetaData implements Diffable<IndexMetaData>, FromXContentBuild
     public static final String SETTING_SHARED_FS_ALLOW_RECOVERY_ON_ANY_NODE = "index.shared_filesystem.recover_on_any_node";
     public static final String INDEX_UUID_NA_VALUE = "_na_";
 
+
     // hard-coded hash function as of 2.0
     // older indices will read which hash function to use in their index settings
     private static final HashFunction MURMUR3_HASH_FUNCTION = new Murmur3HashFunction();
@@ -245,10 +247,11 @@ public class IndexMetaData implements Diffable<IndexMetaData>, FromXContentBuild
         } else {
             this.minimumCompatibleLuceneVersion = null;
         }
-        final Class<? extends HashFunction> hashFunctionClass = settings.getAsClass(SETTING_LEGACY_ROUTING_HASH_FUNCTION, null);
-        if (hashFunctionClass == null) {
+        final String hashFunction = settings.get(SETTING_LEGACY_ROUTING_HASH_FUNCTION);
+        if (hashFunction == null) {
             routingHashFunction = MURMUR3_HASH_FUNCTION;
         } else {
+            final Class<? extends HashFunction> hashFunctionClass = Classes.loadClass(getClass().getClassLoader(), hashFunction);
             try {
                 routingHashFunction = hashFunctionClass.newInstance();
             } catch (InstantiationException | IllegalAccessException e) {

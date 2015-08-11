@@ -57,6 +57,10 @@
         <elasticsearch.integ.antfile.default>${elasticsearch.tools.directory}/ant/integration-tests.xml</elasticsearch.integ.antfile.default>
         <elasticsearch.integ.antfile>${elasticsearch.integ.antfile.default}</elasticsearch.integ.antfile>
 
+        <!-- Properties for the license checker -->
+        <project.licenses.dir>${project.basedir}/licenses</project.licenses.dir>
+        <project.licenses.check_target>${basedir}/target/releases/${project.build.finalName}.zip</project.licenses.check_target>
+
         <!-- Test properties -->
         <tests.jvms>auto</tests.jvms>
         <tests.shuffle>true</tests.shuffle>
@@ -106,11 +110,13 @@
         <tests.ifNoTests>fail</tests.ifNoTests>
         <skip.unit.tests>${skipTests}</skip.unit.tests>
         <skip.integ.tests>${skipTests}</skip.integ.tests>
-        <integ.scratch>${project.build.directory}/integ-tests</integ.scratch>
-        <integ.deps>${project.build.directory}/integ-deps</integ.deps>
+        <integ.scratch>${project.build.directory}/integ tests</integ.scratch>
+        <integ.deps>${project.build.directory}/integ deps</integ.deps>
         <integ.temp>${integ.scratch}/temp</integ.temp>
         <integ.http.port>9400</integ.http.port>
         <integ.transport.port>9500</integ.transport.port>
+        <integ.http.port.sec>9600</integ.http.port.sec>
+        <integ.transport.port.sec>9700</integ.transport.port.sec>
         <no.commit.pattern>\bno(n|)commit\b</no.commit.pattern>
     </properties>
 
@@ -1191,6 +1197,27 @@ org.eclipse.jdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UT
                                 <goal>run</goal>
                             </goals>
                         </execution>
+                        <execution>
+                            <id>check-license</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>run</goal>
+                            </goals>
+                            <configuration>
+                                <skip>${skip.integ.tests}</skip>
+                                <target>
+                                    <echo taskName="license check">Running license check</echo>
+                                    <!-- don't run on windows, because everyone hates it -->
+                                    <exec failonerror="true" executable="perl" osfamily="unix"
+                                          dir="${elasticsearch.tools.directory}/license-check">
+                                        <arg value="check_license_and_sha.pl"/>
+                                        <arg value="--check"/>
+                                        <arg value="${project.licenses.dir}"/>
+                                        <arg value="${project.licenses.check_target}"/>
+                                    </exec>
+                                </target>
+                            </configuration>
+                        </execution>
                     </executions>
                     <dependencies>
                         <dependency>
@@ -1463,5 +1490,6 @@ org.eclipse.jdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UT
         <module>core</module>
         <module>distribution</module>
         <module>plugins</module>
+        <module>qa</module>
     </modules>
 </project>

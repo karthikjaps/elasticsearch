@@ -199,12 +199,12 @@ public class UnassignedInfo implements ToXContent, Writeable<UnassignedInfo> {
     /**
      * The time in millisecond until this unassigned shard can be reassigned.
      */
-    public long getDelayAllocationExpirationIn(Settings settings, Settings indexSettings) {
+    public long getDelayAllocationExpirationIn(long unassignedShardsAllocatedTimestamp, Settings settings, Settings indexSettings) {
         long delayTimeout = getAllocationDelayTimeoutSetting(settings, indexSettings);
         if (delayTimeout == 0) {
             return 0;
         }
-        long delta = System.currentTimeMillis() - timestamp;
+        long delta = unassignedShardsAllocatedTimestamp - timestamp;
         // account for time drift, treat it as no timeout
         if (delta < 0) {
             return 0;
@@ -216,12 +216,12 @@ public class UnassignedInfo implements ToXContent, Writeable<UnassignedInfo> {
     /**
      * Returns the number of shards that are unassigned and currently being delayed.
      */
-    public static int getNumberOfDelayedUnassigned(Settings settings, ClusterState state) {
+    public static int getNumberOfDelayedUnassigned(long unassignedShardsAllocatedTimestamp, Settings settings, ClusterState state) {
         int count = 0;
         for (ShardRouting shard : state.routingTable().shardsWithState(ShardRoutingState.UNASSIGNED)) {
             if (shard.primary() == false) {
                 IndexMetaData indexMetaData = state.metaData().index(shard.getIndex());
-                long delay = shard.unassignedInfo().getDelayAllocationExpirationIn(settings, indexMetaData.getSettings());
+                long delay = shard.unassignedInfo().getDelayAllocationExpirationIn(unassignedShardsAllocatedTimestamp, settings, indexMetaData.getSettings());
                 if (delay > 0) {
                     count++;
                 }
@@ -251,12 +251,12 @@ public class UnassignedInfo implements ToXContent, Writeable<UnassignedInfo> {
     /**
      * Finds the next (closest) delay expiration of an unassigned shard. Returns 0 if there are none.
      */
-    public static long findNextDelayedAllocationIn(Settings settings, ClusterState state) {
+    public static long findNextDelayedAllocationIn(long unassignedShardsAllocatedTimestamp, Settings settings, ClusterState state) {
         long nextDelay = Long.MAX_VALUE;
         for (ShardRouting shard : state.routingTable().shardsWithState(ShardRoutingState.UNASSIGNED)) {
             if (shard.primary() == false) {
                 IndexMetaData indexMetaData = state.metaData().index(shard.getIndex());
-                long nextShardDelay = shard.unassignedInfo().getDelayAllocationExpirationIn(settings, indexMetaData.getSettings());
+                long nextShardDelay = shard.unassignedInfo().getDelayAllocationExpirationIn(unassignedShardsAllocatedTimestamp, settings, indexMetaData.getSettings());
                 if (nextShardDelay > 0 && nextShardDelay < nextDelay) {
                     nextDelay = nextShardDelay;
                 }
@@ -292,5 +292,28 @@ public class UnassignedInfo implements ToXContent, Writeable<UnassignedInfo> {
         }
         builder.endObject();
         return builder;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        UnassignedInfo that = (UnassignedInfo) o;
+
+        if (timestamp != that.timestamp) return false;
+        if (reason != that.reason) return false;
+        if (message != null ? !message.equals(that.message) : that.message != null) return false;
+        return !(failure != null ? !failure.equals(that.failure) : that.failure != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = reason != null ? reason.hashCode() : 0;
+        result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
+        result = 31 * result + (message != null ? message.hashCode() : 0);
+        result = 31 * result + (failure != null ? failure.hashCode() : 0);
+        return result;
     }
 }

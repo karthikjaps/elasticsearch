@@ -17,6 +17,7 @@
         But if you do this, then maven lifecycle does not execute any test (nor compile any test)
      -->
     <!--packaging>pom</packaging-->
+    <description>The ZIP distribution of Elasticsearch</description>
 
     <dependencies>
         <dependency>
@@ -84,7 +85,9 @@
                         <configuration>
                             <skip>${skip.integ.tests}</skip>
                             <target>
-                                <ant antfile="${elasticsearch.integ.antfile}" target="start-external-cluster-zip"/>
+                                <ant antfile="${elasticsearch.integ.antfile}" target="start-external-cluster-zip">
+                                    <property name="tests.jvm.argline" value="${tests.jvm.argline}"/>
+                                </ant>
                             </target>
                         </configuration>
                     </execution>
