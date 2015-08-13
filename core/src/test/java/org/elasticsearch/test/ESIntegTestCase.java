@@ -30,8 +30,10 @@ import com.google.common.collect.Lists;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.impl.client.HttpClients;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.shard.MergeSchedulerConfig;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
@@ -691,15 +693,12 @@ public abstract class ESIntegTestCase extends ESTestCase {
         if (numberOfReplicas >= 0) {
             builder.put(SETTING_NUMBER_OF_REPLICAS, numberOfReplicas).build();
         }
-        // norelease: disabled because custom data paths don't play well against
-        // an external test cluster: the security manager is not happy that random
-        // files are touched. See http://build-us-00.elastic.co/job/es_core_master_strong/4357/console
         // 30% of the time
-        // if (randomInt(9) < 3) {
-        //     final Path dataPath = createTempDir();
-        //     logger.info("using custom data_path for index: [{}]", dataPath);
-        //    builder.put(IndexMetaData.SETTING_DATA_PATH, dataPath);
-        // }
+        if (randomInt(9) < 3) {
+            final String dataPath = randomAsciiOfLength(10);
+            logger.info("using custom data_path for index: [{}]", dataPath);
+            builder.put(IndexMetaData.SETTING_DATA_PATH, dataPath);
+        }
         return builder.build();
     }
 
@@ -1807,39 +1806,6 @@ public abstract class ESIntegTestCase extends ESTestCase {
             }
         }
         return nodes;
-    }
-
-    /**
-     * Asserts that there are no files in the specified path
-     */
-    public void assertPathHasBeenCleared(String path) throws Exception {
-        assertPathHasBeenCleared(PathUtils.get(path));
-    }
-
-    /**
-     * Asserts that there are no files in the specified path
-     */
-    public void assertPathHasBeenCleared(Path path) throws Exception {
-        logger.info("--> checking that [{}] has been cleared", path);
-        int count = 0;
-        StringBuilder sb = new StringBuilder();
-        sb.append("[");
-        if (Files.exists(path)) {
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
-                for (Path file : stream) {
-                    logger.info("--> found file: [{}]", file.toAbsolutePath().toString());
-                    if (Files.isDirectory(file)) {
-                        assertPathHasBeenCleared(file);
-                    } else if (Files.isRegularFile(file)) {
-                        count++;
-                        sb.append(file.toAbsolutePath().toString());
-                        sb.append("\n");
-                    }
-                }
-            }
-        }
-        sb.append("]");
-        assertThat(count + " files exist that should have been cleaned:\n" + sb.toString(), count, equalTo(0));
     }
 
     protected static class NumShards {

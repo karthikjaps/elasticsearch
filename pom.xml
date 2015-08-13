@@ -6,7 +6,7 @@
 
     <groupId>org.elasticsearch</groupId>
     <artifactId>elasticsearch-parent</artifactId>
-    <version>2.0.0-beta1-SNAPSHOT</version>
+    <version>2.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Elasticsearch Parent POM</name>
     <description>Elasticsearch Parent POM</description>
@@ -110,8 +110,8 @@
         <tests.ifNoTests>fail</tests.ifNoTests>
         <skip.unit.tests>${skipTests}</skip.unit.tests>
         <skip.integ.tests>${skipTests}</skip.integ.tests>
-        <integ.scratch>${project.build.directory}/integ tests</integ.scratch>
-        <integ.deps>${project.build.directory}/integ deps</integ.deps>
+        <integ.scratch>${project.build.directory}/integ-tests</integ.scratch>
+        <integ.deps>${project.build.directory}/integ-deps</integ.deps>
         <integ.temp>${integ.scratch}/temp</integ.temp>
         <integ.http.port>9400</integ.http.port>
         <integ.transport.port>9500</integ.transport.port>
@@ -1487,6 +1487,7 @@ org.eclipse.jdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UT
     <modules>
         <module>dev-tools</module>
         <module>rest-api-spec</module>
+        <module>lucene</module>
         <module>core</module>
         <module>distribution</module>
         <module>plugins</module>
