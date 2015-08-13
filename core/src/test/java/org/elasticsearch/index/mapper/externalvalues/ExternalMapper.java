@@ -101,7 +101,7 @@ public class ExternalMapper extends FieldMapper {
             context.path().add(name);
             BinaryFieldMapper binMapper = binBuilder.build(context);
             BooleanFieldMapper boolMapper = boolBuilder.build(context);
-            Mapper pointMapper = (context.indexCreatedVersion() == Version.V_2_0_0_beta1) ? pointBuilder.build(context) :
+            Mapper pointMapper = (context.indexCreatedVersion().onOrAfter(Version.V_2_0_0_beta1)) ? pointBuilder.build(context) :
                     legacyPointBuilder.build(context);
             GeoShapeFieldMapper shapeMapper = shapeBuilder.build(context);
             FieldMapper stringMapper = (FieldMapper)stringBuilder.build(context);
@@ -197,7 +197,7 @@ public class ExternalMapper extends FieldMapper {
 
         // add a dummy point
         if (pointMapper instanceof GeoPointFieldMapperLegacy) {
-            ((GeoPointFieldMapper) (pointMapper)).parse(context.createExternalValueContext(geoPointTest));
+            ((GeoPointFieldMapperLegacy) (pointMapper)).parse(context.createExternalValueContext(geoPointTest));
         } else {
             ((GeoPointFieldMapper) (pointMapper)).parse(context.createExternalValueContext(geoPointTest));
         }
