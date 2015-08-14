@@ -23,11 +23,14 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import org.apache.lucene.util.IOUtils;
+import org.elasticsearch.Build;
+import org.elasticsearch.ElasticsearchCorruptionException;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.bootstrap.JarHell;
 import org.elasticsearch.common.cli.Terminal;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.http.client.HttpDownloadHelper;
 import org.elasticsearch.common.io.FileSystemUtils;
 import org.elasticsearch.common.unit.TimeValue;
@@ -56,6 +59,8 @@ import static org.elasticsearch.common.io.FileSystemUtils.moveFilesWithoutOverwr
  */
 public class PluginManager {
 
+    public static final String PROPERTY_SUPPORT_STAGING_URLS = "es.plugins.staging";
+
     public enum OutputMode {
         DEFAULT, SILENT, VERBOSE
     }
@@ -80,7 +85,8 @@ public class PluginManager {
                     "elasticsearch-cloud-gce",
                     "elasticsearch-delete-by-query",
                     "elasticsearch-lang-javascript",
-                    "elasticsearch-lang-python"
+                    "elasticsearch-lang-python",
+                    "elasticsearch-mapper-size"
             ).build();
 
     private final Environment environment;
@@ -121,6 +127,7 @@ public class PluginManager {
 
         HttpDownloadHelper downloadHelper = new HttpDownloadHelper();
         boolean downloaded = false;
+        boolean verified = false;
         HttpDownloadHelper.DownloadProgress progress;
         if (outputMode == OutputMode.SILENT) {
             progress = new HttpDownloadHelper.NullProgress();
@@ -141,7 +148,14 @@ public class PluginManager {
             try {
                 downloadHelper.download(pluginUrl, pluginFile, progress, this.timeout);
                 downloaded = true;
-            } catch (ElasticsearchTimeoutException e) {
+                terminal.println("Verifying %s checksums if available ...", pluginUrl.toExternalForm());
+                Tuple<URL, Path> sha1Info = pluginHandle.newChecksumUrlAndFile(environment, pluginUrl, "sha1");
+                verified = downloadHelper.downloadAndVerifyChecksum(sha1Info.v1(), pluginFile,
+                        sha1Info.v2(), progress, this.timeout, HttpDownloadHelper.SHA1_CHECKSUM);
+                Tuple<URL, Path> md5Info = pluginHandle.newChecksumUrlAndFile(environment, pluginUrl, "md5");
+                verified = verified || downloadHelper.downloadAndVerifyChecksum(md5Info.v1(), pluginFile,
+                        md5Info.v2(), progress, this.timeout, HttpDownloadHelper.MD5_CHECKSUM);
+            } catch (ElasticsearchTimeoutException | ElasticsearchCorruptionException e) {
                 throw e;
             } catch (Exception e) {
                 // ignore
@@ -160,8 +174,15 @@ public class PluginManager {
                 try {
                     downloadHelper.download(url, pluginFile, progress, this.timeout);
                     downloaded = true;
+                    terminal.println("Verifying %s checksums if available ...", url.toExternalForm());
+                    Tuple<URL, Path> sha1Info = pluginHandle.newChecksumUrlAndFile(environment, url, "sha1");
+                    verified = downloadHelper.downloadAndVerifyChecksum(sha1Info.v1(), pluginFile,
+                            sha1Info.v2(), progress, this.timeout, HttpDownloadHelper.SHA1_CHECKSUM);
+                    Tuple<URL, Path> md5Info = pluginHandle.newChecksumUrlAndFile(environment, url, "md5");
+                    verified = verified || downloadHelper.downloadAndVerifyChecksum(md5Info.v1(), pluginFile,
+                            md5Info.v2(), progress, this.timeout, HttpDownloadHelper.MD5_CHECKSUM);
                     break;
-                } catch (ElasticsearchTimeoutException e) {
+                } catch (ElasticsearchTimeoutException | ElasticsearchCorruptionException e) {
                     throw e;
                 } catch (Exception e) {
                     terminal.println(VERBOSE, "Failed: %s", ExceptionsHelper.detailedMessage(e));
@@ -173,6 +194,10 @@ public class PluginManager {
             // try to cleanup what we downloaded
             IOUtils.deleteFilesIgnoringExceptions(pluginFile);
             throw new IOException("failed to download out of all possible locations..., use --verbose to get detailed information");
+        }
+
+        if (verified == false) {
+            terminal.println("NOTE: Unable to verify checksum for downloaded plugin (unable to find .sha1 or .md5 file to verify)");
         }
         return pluginFile;
     }
@@ -430,10 +455,10 @@ public class PluginManager {
                 // Elasticsearch new download service uses groupId org.elasticsearch.plugins from 2.0.0
                 if (user == null) {
                     // TODO Update to https
-                    if (Version.CURRENT.snapshot()) {
-                        addUrl(urls, String.format(Locale.ROOT, "http://download.elastic.co/elasticsearch/snapshot/org/elasticsearch/plugin/%s/%s-SNAPSHOT/%s-%s-SNAPSHOT.zip", repo, version, repo, version));
+                    if (!Strings.isNullOrEmpty(System.getProperty(PROPERTY_SUPPORT_STAGING_URLS))) {
+                        addUrl(urls, String.format(Locale.ROOT, "http://download.elastic.co/elasticsearch/staging/%s/org/elasticsearch/plugin/elasticsearch-%s/%s/elasticsearch-%s-%s.zip", Build.CURRENT.hashShort(), repo, version, repo, version));
                     }
-                    addUrl(urls, String.format(Locale.ROOT, "http://download.elastic.co/elasticsearch/release/org/elasticsearch/plugin/%s/%s/%s-%s.zip", repo, version, repo, version));
+                    addUrl(urls, String.format(Locale.ROOT, "http://download.elastic.co/elasticsearch/release/org/elasticsearch/plugin/elasticsearch-%s/%s/elasticsearch-%s-%s.zip", repo, version, repo, version));
                 } else {
                     // Elasticsearch old download service
                     // TODO Update to https
@@ -463,6 +488,11 @@ public class PluginManager {
 
         Path newDistroFile(Environment env) throws IOException {
             return Files.createTempFile(env.tmpFile(), name, ".zip");
+        }
+
+        Tuple<URL, Path> newChecksumUrlAndFile(Environment env, URL originalUrl, String suffix) throws IOException {
+            URL newUrl = new URL(originalUrl.toString() + "." + suffix);
+            return new Tuple<>(newUrl, Files.createTempFile(env.tmpFile(), name, ".zip." + suffix));
         }
 
         Path extractedDir(Environment env) {
