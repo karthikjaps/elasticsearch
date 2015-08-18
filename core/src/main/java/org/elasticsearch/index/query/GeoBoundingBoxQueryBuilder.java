@@ -40,6 +40,8 @@ public class GeoBoundingBoxQueryBuilder extends QueryBuilder {
 
     private String queryName;
     private String type;
+    private Boolean coerce;
+    private Boolean ignoreMalformed;
 
     public GeoBoundingBoxQueryBuilder(String name) {
         this.name = name;
@@ -133,6 +135,16 @@ public class GeoBoundingBoxQueryBuilder extends QueryBuilder {
         return this;
     }
 
+    public GeoBoundingBoxQueryBuilder coerce(boolean coerce) {
+        this.coerce = coerce;
+        return this;
+    }
+
+    public GeoBoundingBoxQueryBuilder ignoreMalformed(boolean ignoreMalformed) {
+        this.ignoreMalformed = ignoreMalformed;
+        return this;
+    }
+
     /**
      * Sets the type of executing of the geo bounding box. Can be either `memory` or `indexed`. Defaults
      * to `memory`.
@@ -167,6 +179,12 @@ public class GeoBoundingBoxQueryBuilder extends QueryBuilder {
         }
         if (type != null) {
             builder.field("type", type);
+        }
+        if (coerce != null) {
+            builder.field("coerce", coerce);
+        }
+        if (ignoreMalformed != null) {
+            builder.field("ignore_malformed", ignoreMalformed);
         }
 
         builder.endObject();

@@ -24,6 +24,7 @@ import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
@@ -33,6 +34,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.mapper.ContentPath;
 import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.index.mapper.Mapper;
 import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.mapper.ParseContext;
 import org.elasticsearch.index.mapper.core.DoubleFieldMapper;
@@ -61,19 +63,11 @@ public class GeoPointFieldMapperLegacy extends BaseGeoPointFieldMapper implement
     public static final String CONTENT_TYPE = "geo_point";
 
     public static class Names extends BaseGeoPointFieldMapper.Names {
-        public static final String NORMALIZE = "normalize";
-        public static final String NORMALIZE_LAT = "normalize_lat";
-        public static final String NORMALIZE_LON = "normalize_lon";
-        public static final String VALIDATE = "validate";
-        public static final String VALIDATE_LAT = "validate_lat";
-        public static final String VALIDATE_LON = "validate_lon";
+        public static final String COERCE = "coerce";
     }
 
-    public static class Defaults {
-        public static final boolean NORMALIZE_LAT = true;
-        public static final boolean NORMALIZE_LON = true;
-        public static final boolean VALIDATE_LAT = true;
-        public static final boolean VALIDATE_LON = true;
+    public static class Defaults extends BaseGeoPointFieldMapper.Defaults{
+        public static final boolean COERCE = false;
 
         public static final BaseGeoPointFieldType FIELD_TYPE = new GeoPointFieldType();
 
@@ -130,30 +124,48 @@ public class GeoPointFieldMapperLegacy extends BaseGeoPointFieldMapper implement
         }
     }
 
-    public static Builder parse(Builder builder, Map<String, Object> node) throws MapperParsingException {
+    public static Builder parse(Builder builder, Map<String, Object> node, Mapper.TypeParser.ParserContext parserContext) throws MapperParsingException {
+        final boolean indexCreatedBeforeV2_0 = parserContext.indexVersionCreated().before(Version.V_2_0_0);
         for (Iterator<Map.Entry<String, Object>> iterator = node.entrySet().iterator(); iterator.hasNext();) {
             Map.Entry<String, Object> entry = iterator.next();
             String fieldName = Strings.toUnderscoreCase(entry.getKey());
             Object fieldNode = entry.getValue();
-            if (fieldName.equals(Names.VALIDATE)) {
-                builder.fieldType().setValidateLat(XContentMapValues.nodeBooleanValue(fieldNode));
-                builder.fieldType().setValidateLon(XContentMapValues.nodeBooleanValue(fieldNode));
+            if (fieldName.equals(Names.IGNORE_MALFORMED)) {
+                if (builder.fieldType().coerce == false) {
+                    builder.fieldType().ignoreMalformed = XContentMapValues.nodeBooleanValue(fieldNode);
+                }
                 iterator.remove();
-            } else if (fieldName.equals(Names.VALIDATE_LON)) {
-                builder.fieldType().setValidateLon(XContentMapValues.nodeBooleanValue(fieldNode));
+            } else if (indexCreatedBeforeV2_0 && fieldName.equals("validate")) {
+                if (builder.fieldType().ignoreMalformed == false) {
+                    builder.fieldType().ignoreMalformed = !XContentMapValues.nodeBooleanValue(fieldNode);
+                }
                 iterator.remove();
-            } else if (fieldName.equals(Names.VALIDATE_LAT)) {
-                builder.fieldType().setValidateLat(XContentMapValues.nodeBooleanValue(fieldNode));
+            } else if (indexCreatedBeforeV2_0 && fieldName.equals("validate_lon")) {
+                if (builder.fieldType().ignoreMalformed() == false) {
+                    builder.fieldType().ignoreMalformed = !XContentMapValues.nodeBooleanValue(fieldNode);
+                }
                 iterator.remove();
-            } else if (fieldName.equals(Names.NORMALIZE)) {
-                builder.fieldType().setNormalizeLat(XContentMapValues.nodeBooleanValue(fieldNode));
-                builder.fieldType().setNormalizeLon(XContentMapValues.nodeBooleanValue(fieldNode));
+            } else if (indexCreatedBeforeV2_0 && fieldName.equals("validate_lat")) {
+                if (builder.fieldType().ignoreMalformed == false) {
+                    builder.fieldType().ignoreMalformed = !XContentMapValues.nodeBooleanValue(fieldNode);
+                }
                 iterator.remove();
-            } else if (fieldName.equals(Names.NORMALIZE_LAT)) {
-                builder.fieldType().setNormalizeLat(XContentMapValues.nodeBooleanValue(fieldNode));
+            } else if (fieldName.equals(Names.COERCE)) {
+                builder.fieldType().coerce = XContentMapValues.nodeBooleanValue(fieldNode);
+                if (builder.fieldType().coerce == true) {
+                    builder.fieldType().ignoreMalformed = true;
+                }
                 iterator.remove();
-            } else if (fieldName.equals(Names.NORMALIZE_LON)) {
-                builder.fieldType().setNormalizeLon(XContentMapValues.nodeBooleanValue(fieldNode));
+            } else if (indexCreatedBeforeV2_0 && fieldName.equals("normalize")) {
+                builder.fieldType().coerce = XContentMapValues.nodeBooleanValue(fieldNode);
+                iterator.remove();
+            } else if (indexCreatedBeforeV2_0 && fieldName.equals("normalize_lat")) {
+                builder.fieldType().coerce = XContentMapValues.nodeBooleanValue(fieldNode);
+                iterator.remove();
+            } else if (indexCreatedBeforeV2_0 && fieldName.equals("normalize_lon")) {
+                if (builder.fieldType().coerce == false) {
+                    builder.fieldType().coerce = XContentMapValues.nodeBooleanValue(fieldNode);
+                }
                 iterator.remove();
             }
         }
@@ -161,10 +173,7 @@ public class GeoPointFieldMapperLegacy extends BaseGeoPointFieldMapper implement
     }
 
     public static final class GeoPointFieldType extends GeoPointFieldMapper.BaseGeoPointFieldType {
-        private boolean validateLon = true;
-        private boolean validateLat = true;
-        private boolean normalizeLon = true;
-        private boolean normalizeLat = true;
+        protected boolean coerce = false;
 
         public GeoPointFieldType() {
             super();
@@ -172,11 +181,7 @@ public class GeoPointFieldMapperLegacy extends BaseGeoPointFieldMapper implement
 
         protected GeoPointFieldType(GeoPointFieldType ref) {
             super(ref);
-
-            this.validateLon = ref.validateLon;
-            this.validateLat = ref.validateLat;
-            this.normalizeLon = ref.normalizeLon;
-            this.normalizeLat = ref.normalizeLat;
+            this.coerce = ref.coerce;
         }
 
         @Override
@@ -188,69 +193,21 @@ public class GeoPointFieldMapperLegacy extends BaseGeoPointFieldMapper implement
         public boolean equals(Object o) {
             if (!super.equals(o)) return false;
             GeoPointFieldType that = (GeoPointFieldType) o;
-            return validateLon == that.validateLon &&
-                   validateLat == that.validateLat &&
-                   normalizeLon == that.normalizeLon &&
-                   normalizeLat == that.normalizeLat;
+            return coerce == that.coerce;
         }
 
         @Override
         public int hashCode() {
-            return java.util.Objects.hash(super.hashCode(), validateLon, validateLat, normalizeLon, normalizeLat);
+            return java.util.Objects.hash(super.hashCode(), coerce);
         }
 
-        @Override
-        public void checkCompatibility(MappedFieldType fieldType, List<String> conflicts, boolean strict) {
-            super.checkCompatibility(fieldType, conflicts, strict);
-            GeoPointFieldType other = (GeoPointFieldType)fieldType;
-            if (normalizeLat() != other.normalizeLat()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different normalize_lat");
-            }
-            if (normalizeLon() != other.normalizeLon()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different normalize_lon");
-            }
-            if (validateLat() != other.validateLat()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different validate_lat");
-            }
-            if (validateLon() != other.validateLon()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different validate_lon");
-            }
+        public boolean coerce() {
+            return this.coerce;
         }
 
-        public boolean validateLon() {
-            return validateLon;
-        }
-
-        public void setValidateLon(boolean validateLon) {
+        public void setCoerce(boolean coerce) {
             checkIfFrozen();
-            this.validateLon = validateLon;
-        }
-
-        public boolean validateLat() {
-            return validateLat;
-        }
-
-        public void setValidateLat(boolean validateLat) {
-            checkIfFrozen();
-            this.validateLat = validateLat;
-        }
-
-        public boolean normalizeLon() {
-            return normalizeLon;
-        }
-
-        public void setNormalizeLon(boolean normalizeLon) {
-            checkIfFrozen();
-            this.normalizeLon = normalizeLon;
-        }
-
-        public boolean normalizeLat() {
-            return normalizeLat;
-        }
-
-        public void setNormalizeLat(boolean normalizeLat) {
-            checkIfFrozen();
-            this.normalizeLat = normalizeLat;
+            this.coerce = coerce;
         }
 
         @Override
@@ -270,11 +227,6 @@ public class GeoPointFieldMapperLegacy extends BaseGeoPointFieldMapper implement
     }
 
     @Override
-    protected String contentType() {
-        return CONTENT_TYPE;
-    }
-
-    @Override
     public GeoPointFieldType fieldType() {
         return (GeoPointFieldType) super.fieldType();
     }
@@ -284,20 +236,21 @@ public class GeoPointFieldMapperLegacy extends BaseGeoPointFieldMapper implement
         throw new UnsupportedOperationException("Parsing is implemented in parse(), this method should NEVER be called");
     }
 
+    @Override
     protected void parse(ParseContext context, GeoPoint point, String geohash) throws IOException {
-        if (fieldType().normalizeLat() || fieldType().normalizeLon()) {
-            GeoUtils.normalizePoint(point, fieldType().normalizeLat(), fieldType().normalizeLon());
-        }
-
-        if (fieldType().validateLat()) {
+        if (fieldType().ignoreMalformed == false) {
             if (point.lat() > 90.0 || point.lat() < -90.0) {
                 throw new IllegalArgumentException("illegal latitude value [" + point.lat() + "] for " + name());
             }
-        }
-        if (fieldType().validateLon()) {
             if (point.lon() > 180.0 || point.lon() < -180) {
                 throw new IllegalArgumentException("illegal longitude value [" + point.lon() + "] for " + name());
             }
+        }
+
+        if (fieldType().coerce) {
+            // by setting coerce to false we are assuming all geopoints are already in a valid coordinate system
+            // thus this extra step can be skipped
+            GeoUtils.normalizePoint(point, true, true);
         }
 
         if (fieldType().indexOptions() != IndexOptions.NONE || fieldType().stored()) {
@@ -321,34 +274,8 @@ public class GeoPointFieldMapperLegacy extends BaseGeoPointFieldMapper implement
     @Override
     protected void doXContentBody(XContentBuilder builder, boolean includeDefaults, Params params) throws IOException {
         super.doXContentBody(builder, includeDefaults, params);
-        if (includeDefaults || fieldType().validateLat() != Defaults.VALIDATE_LAT || fieldType().validateLon() != Defaults
-                .VALIDATE_LON) {
-            if (fieldType().validateLat() && fieldType().validateLon()) {
-                builder.field("validate", true);
-            } else if (!fieldType().validateLat() && !fieldType().validateLon()) {
-                builder.field("validate", false);
-            } else {
-                if (includeDefaults || fieldType().validateLat() != Defaults.VALIDATE_LAT) {
-                    builder.field("validate_lat", fieldType().validateLat());
-                }
-                if (includeDefaults || fieldType().validateLon() != Defaults.VALIDATE_LON) {
-                    builder.field("validate_lon", fieldType().validateLon());
-                }
-            }
-        }
-        if (includeDefaults || fieldType().normalizeLat() != Defaults.NORMALIZE_LAT || fieldType().normalizeLon() != Defaults.NORMALIZE_LON) {
-            if (fieldType().normalizeLat() && fieldType().normalizeLon()) {
-                builder.field("normalize", true);
-            } else if (!fieldType().normalizeLat() && !fieldType().normalizeLon()) {
-                builder.field("normalize", false);
-            } else {
-                if (includeDefaults || fieldType().normalizeLat() != Defaults.NORMALIZE_LAT) {
-                    builder.field("normalize_lat", fieldType().normalizeLat());
-                }
-                if (includeDefaults || fieldType().normalizeLon() != Defaults.NORMALIZE_LON) {
-                    builder.field("normalize_lon", fieldType().normalizeLon());
-                }
-            }
+        if (includeDefaults || fieldType().coerce != Defaults.COERCE) {
+            builder.field(Names.COERCE, fieldType().coerce);
         }
     }
 

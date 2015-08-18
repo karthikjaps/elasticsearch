@@ -37,6 +37,10 @@ public class GeoPolygonQueryBuilder extends QueryBuilder {
 
     private String queryName;
 
+    private Boolean coerce;
+
+    private Boolean ignoreMalformed;
+
     public GeoPolygonQueryBuilder(String name) {
         this.name = name;
     }
@@ -69,6 +73,16 @@ public class GeoPolygonQueryBuilder extends QueryBuilder {
         return this;
     }
 
+    public GeoPolygonQueryBuilder coerce(boolean coerce) {
+        this.coerce = coerce;
+        return this;
+    }
+
+    public GeoPolygonQueryBuilder ignoreMalformed(boolean ignoreMalformed) {
+        this.ignoreMalformed = ignoreMalformed;
+        return this;
+    }
+
     @Override
     protected void doXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(GeoPolygonQueryParser.NAME);
@@ -83,6 +97,12 @@ public class GeoPolygonQueryBuilder extends QueryBuilder {
 
         if (queryName != null) {
             builder.field("_name", queryName);
+        }
+        if (coerce != null) {
+            builder.field("coerce", coerce);
+        }
+        if (ignoreMalformed != null) {
+            builder.field("ignore_malformed", ignoreMalformed);
         }
 
         builder.endObject();

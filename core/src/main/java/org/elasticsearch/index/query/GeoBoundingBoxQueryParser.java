@@ -84,8 +84,9 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
         String queryName = null;
         String currentFieldName = null;
         XContentParser.Token token;
-        final boolean bwc = parseContext.indexVersionCreated().before(Version.V_2_0_0_beta1);
-        boolean normalize = true;
+        final boolean indexCreatedBeforeV2_0 = parseContext.indexVersionCreated().before(Version.V_2_0_0);
+        boolean coerce = false;
+        boolean ignoreMalformed = false;
 
         GeoPoint sparse = new GeoPoint();
         
@@ -141,14 +142,15 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
             } else if (token.isValue()) {
                 if ("_name".equals(currentFieldName)) {
                     queryName = parser.text();
-                } else if ("normalize".equals(currentFieldName)) {
-                    normalize = parser.booleanValue();
-                } else if ("type".equals(currentFieldName)) {
-                    if (bwc) {
-                        type = parser.text();
-                    } else {
-                        throw new ElasticsearchParseException("[type] is deprecated for [{}] queries", NAME);
+                } else if ("coerce".equals(currentFieldName) || (indexCreatedBeforeV2_0 && "normalize".equals(currentFieldName))) {
+                    coerce = parser.booleanValue();
+                    if (coerce == true) {
+                        ignoreMalformed = true;
                     }
+                } else if ("type".equals(currentFieldName)) {
+                    type = parser.text();
+                } else if ("ignore_malformed".equals(currentFieldName) && coerce == false) {
+                    ignoreMalformed = parser.booleanValue();
                 } else {
                     throw new QueryParsingException(parseContext, "failed to parse [{}] query. unexpected field [{}]", NAME, currentFieldName);
                 }
@@ -158,8 +160,24 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
         final GeoPoint topLeft = sparse.reset(top, left);  //just keep the object
         final GeoPoint bottomRight = new GeoPoint(bottom, right);
 
-        if (!bwc || normalize) {
-            // Special case: if the difference bettween the left and right is 360 and the right is greater than the left, we are asking for 
+        // validation was not available prior to 2.x, so to support bwc percolation queries we only ignore_malformed on 2.x created indexes
+        if (!indexCreatedBeforeV2_0 && !ignoreMalformed) {
+            if (topLeft.lat() > 90.0 || topLeft.lat() < -90.0) {
+                throw new QueryParsingException(parseContext, "illegal latitude value [{}] for [{}]", topLeft.lat(), NAME);
+            }
+            if (topLeft.lon() > 180.0 || topLeft.lon() < -180) {
+                throw new QueryParsingException(parseContext, "illegal longitude value [{}] for [{}]", topLeft.lon(), NAME);
+            }
+            if (bottomRight.lat() > 90.0 || bottomRight.lat() < -90.0) {
+                throw new QueryParsingException(parseContext, "illegal latitude value [{}] for [{}]", bottomRight.lat(), NAME);
+            }
+            if (bottomRight.lon() > 180.0 || bottomRight.lon() < -180) {
+                throw new QueryParsingException(parseContext, "illegal longitude value [{}] for [{}]", bottomRight.lon(), NAME);
+            }
+        }
+
+        if (coerce) {
+            // Special case: if the difference between the left and right is 360 and the right is greater than the left, we are asking for
             // the complete longitude range so need to set longitude to the complete longditude range
             boolean completeLonRange = ((right - left) % 360 == 0 && right > left);
             GeoUtils.normalizePoint(topLeft, true, !completeLonRange);
@@ -180,7 +198,7 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
         }
 
         Query query;
-        if (!bwc) {
+        if (!indexCreatedBeforeV2_0) {
            query = new GeoPointInBBoxQuery(fieldType.names().fullName(), topLeft.lon(), bottomRight.lat(), bottomRight.lon(), topLeft.lat());
         } else if ("indexed".equals(type)) {
             query = IndexedGeoBoundingBoxQuery.create(topLeft, bottomRight, (GeoPointFieldMapperLegacy.GeoPointFieldType) fieldType);

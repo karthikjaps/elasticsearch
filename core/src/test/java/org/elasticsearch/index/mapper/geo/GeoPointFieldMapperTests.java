@@ -19,9 +19,12 @@
 package org.elasticsearch.index.mapper.geo;
 
 import org.apache.lucene.document.GeoPointField;
-import org.apache.lucene.util.GeoUtils;
 import org.apache.lucene.util.GeoHashUtils;
+import org.apache.lucene.util.GeoUtils;
+import org.elasticsearch.Version;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.DocumentMapperParser;
@@ -29,14 +32,13 @@ import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.mapper.MergeResult;
 import org.elasticsearch.index.mapper.ParsedDocument;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+import org.elasticsearch.test.VersionUtils;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 
 import static org.hamcrest.Matchers.*;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 
 public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     @Test
@@ -146,8 +148,8 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     public void testNormalizeLatLonValuesDefault() throws Exception {
         // default to normalize
         String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("ignore_malformed", true).endObject()
-                .endObject().endObject().endObject().string();
+                .startObject("properties").startObject("point").field("type", "geo_point")
+                .field("ignore_malformed", true).endObject().endObject().endObject().endObject().string();
 
         DocumentMapper defaultMapper = createIndex("test").mapperService().documentMapperParser().parse(mapping);
 
@@ -182,11 +184,10 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
     @Test
     public void testValidateLatLonValues() throws Exception {
         String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).endObject().endObject()
-                .endObject().endObject().string();
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true)
+                .field("ignore_malformed", false).endObject().endObject().endObject().endObject().string();
 
         DocumentMapper defaultMapper = createIndex("test").mapperService().documentMapperParser().parse(mapping);
-
 
         ParsedDocument doc = defaultMapper.parse("test", "type", "1", XContentFactory.jsonBuilder()
                 .startObject()
@@ -246,7 +247,6 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
                 .field("ignore_malformed", true).endObject().endObject().endObject().endObject().string();
 
         DocumentMapper defaultMapper = createIndex("test").mapperService().documentMapperParser().parse(mapping);
-
 
         ParsedDocument doc = defaultMapper.parse("test", "type", "1", XContentFactory.jsonBuilder()
                 .startObject()
@@ -493,29 +493,160 @@ public class GeoPointFieldMapperTests extends ESSingleNodeTestCase {
         assertThat(Long.parseLong(doc.rootDoc().getFields("point")[1].stringValue()), equalTo(hash));
     }
 
+
+    /**
+     * Test that expected exceptions are thrown when creating a new index with deprecated options
+     */
+    @Test
+    public void testOptionDeprecation() throws Exception {
+        DocumentMapperParser parser = createIndex("test").mapperService().documentMapperParser();
+        // test deprecation exceptions on newly created indexes
+        try {
+            String validateMapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                    .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                    .field("validate", true).endObject().endObject()
+                    .endObject().endObject().string();
+            parser.parse(validateMapping);
+            fail("process completed successfully when " + MapperParsingException.class.getName() + " expected");
+        } catch (MapperParsingException e) {
+            assertEquals(e.getMessage(), "Mapping definition for [point] has unsupported parameters:  [validate : true]");
+        }
+
+        try {
+            String validateMapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                    .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                    .field("validate_lat", true).endObject().endObject()
+                    .endObject().endObject().string();
+            parser.parse(validateMapping);
+            fail("process completed successfully when " + MapperParsingException.class.getName() + " expected");
+        } catch (MapperParsingException e) {
+            assertEquals(e.getMessage(), "Mapping definition for [point] has unsupported parameters:  [validate_lat : true]");
+        }
+
+        try {
+            String validateMapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                    .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                    .field("validate_lon", true).endObject().endObject()
+                    .endObject().endObject().string();
+            parser.parse(validateMapping);
+            fail("process completed successfully when " + MapperParsingException.class.getName() + " expected");
+        } catch (MapperParsingException e) {
+            assertEquals(e.getMessage(), "Mapping definition for [point] has unsupported parameters:  [validate_lon : true]");
+        }
+
+        // test deprecated normalize
+        try {
+            String normalizeMapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                    .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                    .field("normalize", true).endObject().endObject()
+                    .endObject().endObject().string();
+            parser.parse(normalizeMapping);
+            fail("process completed successfully when " + MapperParsingException.class.getName() + " expected");
+        } catch (MapperParsingException e) {
+            assertEquals(e.getMessage(), "Mapping definition for [point] has unsupported parameters:  [normalize : true]");
+        }
+
+        try {
+            String normalizeMapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                    .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                    .field("normalize_lat", true).endObject().endObject()
+                    .endObject().endObject().string();
+            parser.parse(normalizeMapping);
+            fail("process completed successfully when " + MapperParsingException.class.getName() + " expected");
+        } catch (MapperParsingException e) {
+            assertEquals(e.getMessage(), "Mapping definition for [point] has unsupported parameters:  [normalize_lat : true]");
+        }
+
+        try {
+            String normalizeMapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                    .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                    .field("normalize_lon", true).endObject().endObject()
+                    .endObject().endObject().string();
+            parser.parse(normalizeMapping);
+            fail("process completed successfully when " + MapperParsingException.class.getName() + " expected");
+        } catch (MapperParsingException e) {
+            assertEquals(e.getMessage(), "Mapping definition for [point] has unsupported parameters:  [normalize_lon : true]");
+        }
+    }
+
+    /**
+     * Test backward compatibility
+     */
+    @Test
+    public void testBackwardCompatibleOptions() throws Exception {
+        // backward compatibility testing
+        Settings settings = Settings.settingsBuilder().put(IndexMetaData.SETTING_VERSION_CREATED, VersionUtils.randomVersionBetween(random(), Version.V_1_0_0,
+                Version.V_1_7_1)).build();
+
+        // validate
+        DocumentMapperParser parser = createIndex("test", settings).mapperService().documentMapperParser();
+        String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                .field("validate", false).endObject().endObject()
+                .endObject().endObject().string();
+        parser.parse(mapping);
+        assertThat(parser.parse(mapping).mapping().toString(), containsString("\"ignore_malformed\":true"));
+
+        mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                .field("validate_lat", false).endObject().endObject()
+                .endObject().endObject().string();
+        parser.parse(mapping);
+        assertThat(parser.parse(mapping).mapping().toString(), containsString("\"ignore_malformed\":true"));
+
+        mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                .field("validate_lon", false).endObject().endObject()
+                .endObject().endObject().string();
+        parser.parse(mapping);
+        assertThat(parser.parse(mapping).mapping().toString(), containsString("\"ignore_malformed\":true"));
+
+        // normalize
+        mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                .field("normalize", true).endObject().endObject()
+                .endObject().endObject().string();
+        parser.parse(mapping);
+        assertThat(parser.parse(mapping).mapping().toString(), containsString("\"coerce\":true"));
+
+        mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                .field("normalize_lat", true).endObject().endObject()
+                .endObject().endObject().string();
+        parser.parse(mapping);
+        assertThat(parser.parse(mapping).mapping().toString(), containsString("\"coerce\":true"));
+
+        mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
+                .field("normalize_lon", true).endObject().endObject()
+                .endObject().endObject().string();
+        parser.parse(mapping);
+        assertThat(parser.parse(mapping).mapping().toString(), containsString("\"coerce\":true"));
+    }
+
     @Test
     public void testGeoPointMapperMerge() throws Exception {
         String stage1Mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("geohash", true)
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
                 .field("ignore_malformed", true).endObject().endObject()
                 .endObject().endObject().string();
         DocumentMapperParser parser = createIndex("test").mapperService().documentMapperParser();
         DocumentMapper stage1 = parser.parse(stage1Mapping);
         String stage2Mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("geohash", false)
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", false).field("geohash", true)
                 .field("ignore_malformed", false).endObject().endObject()
                 .endObject().endObject().string();
         DocumentMapper stage2 = parser.parse(stage2Mapping);
 
         MergeResult mergeResult = stage1.merge(stage2.mapping(), false, false);
         assertThat(mergeResult.hasConflicts(), equalTo(true));
-        assertThat(mergeResult.buildConflicts().length, equalTo(2));
+        assertThat(mergeResult.buildConflicts().length, equalTo(1));
         // todo better way of checking conflict?
-        assertThat("mapper [point] has different geohash", isIn(new ArrayList<>(Arrays.asList(mergeResult.buildConflicts()))));
+        assertThat("mapper [point] has different lat_lon", isIn(new ArrayList<>(Arrays.asList(mergeResult.buildConflicts()))));
 
         // correct mapping and ensure no failures
         stage2Mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
-                .startObject("properties").startObject("point").field("type", "geo_point").field("geohash", true)
+                .startObject("properties").startObject("point").field("type", "geo_point").field("lat_lon", true).field("geohash", true)
                 .field("ignore_malformed", true).endObject().endObject()
                 .endObject().endObject().string();
         stage2 = parser.parse(stage2Mapping);

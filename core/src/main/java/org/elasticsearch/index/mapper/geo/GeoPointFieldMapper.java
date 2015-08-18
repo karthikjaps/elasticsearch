@@ -19,18 +19,15 @@
 
 package org.elasticsearch.index.mapper.geo;
 
-import com.google.common.collect.Iterators;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.document.GeoPointField;
+import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
-import org.elasticsearch.common.Explicit;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.mapper.ContentPath;
 import org.elasticsearch.index.mapper.MappedFieldType;
@@ -39,10 +36,8 @@ import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.mapper.ParseContext;
 import org.elasticsearch.index.mapper.core.DoubleFieldMapper;
 import org.elasticsearch.index.mapper.core.StringFieldMapper;
-import org.elasticsearch.index.mapper.object.ArrayValueMapperParser;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -57,16 +52,11 @@ import java.util.Map;
  * "lon" : 2.1
  * }
  */
-public class GeoPointFieldMapper extends BaseGeoPointFieldMapper implements ArrayValueMapperParser {
+public class GeoPointFieldMapper extends BaseGeoPointFieldMapper  {
 
     public static final String CONTENT_TYPE = "geo_point";
 
-    public static class Names extends BaseGeoPointFieldMapper.Names {
-        public static final String IGNORE_MALFORMED = "ignore_malformed";
-    }
-
     public static class Defaults extends BaseGeoPointFieldMapper.Defaults {
-        public static final Explicit<Boolean> IGNORE_MALFORMED = new Explicit<>(false, false);
 
         public static final BaseGeoPointFieldType FIELD_TYPE = new GeoPointFieldType();
 
@@ -147,40 +137,17 @@ public class GeoPointFieldMapper extends BaseGeoPointFieldMapper implements Arra
     }
 
     public static final class GeoPointFieldType extends BaseGeoPointFieldType {
-        private boolean ignoreMalformed = false;
 
         public GeoPointFieldType() {
         }
 
         protected GeoPointFieldType(GeoPointFieldType ref) {
             super(ref);
-            this.ignoreMalformed = ref.ignoreMalformed;
         }
 
         @Override
         public MappedFieldType clone() {
             return new GeoPointFieldType(this);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (!super.equals(o)) return false;
-            GeoPointFieldType that = (GeoPointFieldType) o;
-            return ignoreMalformed == that.ignoreMalformed;
-        }
-
-        @Override
-        public int hashCode() {
-            return java.util.Objects.hash(super.hashCode(), ignoreMalformed);
-        }
-
-        public boolean ignoreMalformed() {
-            return ignoreMalformed;
-        }
-
-        public void setIgnoreMalformed(boolean ignoreMalformed) {
-            checkIfFrozen();
-            this.ignoreMalformed = ignoreMalformed;
         }
 
         @Override
@@ -200,11 +167,6 @@ public class GeoPointFieldMapper extends BaseGeoPointFieldMapper implements Arra
     }
 
     @Override
-    protected String contentType() {
-        return CONTENT_TYPE;
-    }
-
-    @Override
     public GeoPointFieldType fieldType() {
         return (GeoPointFieldType) super.fieldType();
     }
@@ -214,41 +176,22 @@ public class GeoPointFieldMapper extends BaseGeoPointFieldMapper implements Arra
         throw new UnsupportedOperationException("Parsing is implemented in parse(), this method should NEVER be called");
     }
 
+    @Override
     protected void parse(ParseContext context, GeoPoint point, String geohash) throws IOException {
-        if (!fieldType().ignoreMalformed) {
+        if (fieldType().ignoreMalformed == false) {
             if (point.lat() > 90.0 || point.lat() < -90.0) {
                 throw new IllegalArgumentException("illegal latitude value [" + point.lat() + "] for " + name());
             }
-
             if (point.lon() > 180.0 || point.lon() < -180) {
                 throw new IllegalArgumentException("illegal longitude value [" + point.lon() + "] for " + name());
             }
+        } else {
+            // LUCENE WATCH: This will be folded back into Lucene's GeoPointField
+            GeoUtils.normalizePoint(point);
         }
-
-        // LUCENE WATCH: This will be folded back into Lucene's GeoPointField
-        GeoUtils.normalizePoint(point);
-
         if (fieldType().indexOptions() != IndexOptions.NONE || fieldType().stored()) {
             context.doc().add(new GeoPointField(fieldType().names().indexName(), point.lon(), point.lat(), fieldType() ));
         }
-
         super.parse(context, point, geohash);
-    }
-
-    @Override
-    public Iterator<Mapper> iterator() {
-        List<Mapper> extras = new ArrayList<>();
-        if (fieldType().isGeohashEnabled()) {
-            extras.add(geohashMapper);
-        }
-        return Iterators.concat(super.iterator(), extras.iterator());
-    }
-
-    @Override
-    protected void doXContentBody(XContentBuilder builder, boolean includeDefaults, Params params) throws IOException {
-        super.doXContentBody(builder, includeDefaults, params);
-        if (includeDefaults || fieldType().ignoreMalformed != Defaults.IGNORE_MALFORMED.value()) {
-            builder.field(Names.IGNORE_MALFORMED, fieldType().ignoreMalformed);
-        }
     }
 }
