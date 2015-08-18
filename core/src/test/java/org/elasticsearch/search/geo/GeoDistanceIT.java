@@ -20,13 +20,17 @@
 package org.elasticsearch.search.geo;
 
 import org.apache.lucene.util.GeoHashUtils;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.geo.GeoDistance;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.mapper.DocumentMapperParser;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.Script;
@@ -34,6 +38,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.VersionUtils;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -66,12 +71,14 @@ public class GeoDistanceIT extends ESIntegTestCase {
 
     @Test
     public void simpleDistanceTests() throws Exception {
+        Settings settings = Settings.settingsBuilder().put(IndexMetaData.SETTING_VERSION_CREATED, VersionUtils.randomVersionBetween(random(), Version.V_1_0_0,
+                Version.V_2_1_0)).build();
         XContentBuilder xContentBuilder = XContentFactory.jsonBuilder().startObject().startObject("type1")
-                .startObject("properties").startObject("location").field("type", "geo_point")/*.field("lat_lon", true)*/
+                .startObject("properties").startObject("location").field("type", "geo_point").field("lat_lon", true)
                 .startObject("fielddata").field("format", randomNumericFieldDataFormat()).endObject().endObject()
                 .endObject()
                 .endObject().endObject();
-        assertAcked(prepareCreate("test").addMapping("type1", xContentBuilder));
+        assertAcked(prepareCreate("test").setSettings(settings).addMapping("type1", xContentBuilder));
         ensureGreen();
 
         indexRandom(true, client().prepareIndex("test", "type1", "1").setSource(jsonBuilder().startObject()
@@ -691,38 +698,39 @@ public class GeoDistanceIT extends ESIntegTestCase {
         return randomDouble() * 180 - 90;
     }
 
-//    public void testDuelOptimizations() throws Exception {
-//        assertAcked(prepareCreate("index").addMapping("type", "location", "type=geo_point,lat_lon=true"));
-//        final int numDocs = scaledRandomIntBetween(3000, 10000);
-//        List<IndexRequestBuilder> docs = new ArrayList<>();
-//        for (int i = 0; i < numDocs; ++i) {
-//            docs.add(client().prepareIndex("index", "type").setSource(jsonBuilder().startObject().startObject("location").field("lat", randomLat()).field("lon", randomLon()).endObject().endObject()));
-//        }
-//        indexRandom(true, docs);
-//        ensureSearchable();
-//
-//        for (int i = 0; i < 10; ++i) {
-//            final double originLat = randomLat();
-//            final double originLon = randomLon();
-//            // TODO: GeoPointTermsEnum.AttributeSource is not persisting geo ranges (SEE: LUCENE-XXXX) this can lead to OOM
-//            // as it needs to recompute the ranges, temp fix for now is to reduce the distance size
-//            final String distance = DistanceUnit.KILOMETERS.toString(randomInt(1000));
-//            for (GeoDistance geoDistance : Arrays.asList(GeoDistance.ARC, GeoDistance.SLOPPY_ARC)) {
-//                logger.info("Now testing GeoDistance={}, distance={}, origin=({}, {})", geoDistance, distance, originLat, originLon);
-//                long matches = -1;
-//                for (String optimizeBbox : Arrays.asList("none", "memory", "indexed")) {
-//                    SearchResponse resp = client().prepareSearch("index").setSize(0).setQuery(QueryBuilders.constantScoreQuery(
-//                            QueryBuilders.geoDistanceQuery("location").point(originLat, originLon).distance(distance).geoDistance(geoDistance).optimizeBbox(optimizeBbox))).execute().actionGet();
-//                    assertSearchResponse(resp);
-//                    logger.info("{} hits", resp.getHits().totalHits());
-//                    if (matches < 0) {
-//                        matches = resp.getHits().totalHits();
-//                    } else {
-//                        assertEquals(matches, resp.getHits().totalHits());
-//                    }
-//                }
-//            }
-//        }
-//    }
+    public void testDuelOptimizations() throws Exception {
+        Settings settings = Settings.settingsBuilder().put(IndexMetaData.SETTING_VERSION_CREATED, VersionUtils.randomVersionBetween(random(), Version.V_1_0_0,
+                Version.V_1_7_1)).build();
+        assertAcked(prepareCreate("index").setSettings(settings).addMapping("type", "location", "type=geo_point,lat_lon=true"));
+        final int numDocs = scaledRandomIntBetween(3000, 10000);
+        List<IndexRequestBuilder> docs = new ArrayList<>();
+        for (int i = 0; i < numDocs; ++i) {
+            docs.add(client().prepareIndex("index", "type").setSource(jsonBuilder().startObject().startObject("location").field("lat", randomLat()).field("lon", randomLon()).endObject().endObject()));
+        }
+        indexRandom(true, docs);
+        ensureSearchable();
 
+        for (int i = 0; i < 10; ++i) {
+            final double originLat = randomLat();
+            final double originLon = randomLon();
+            // TODO: GeoPointTermsEnum.AttributeSource is not persisting geo ranges (SEE: LUCENE-XXXX) this can lead to OOM
+            // as it needs to recompute the ranges, temp fix for now is to reduce the distance size
+            final String distance = DistanceUnit.KILOMETERS.toString(randomInt(1000));
+            for (GeoDistance geoDistance : Arrays.asList(GeoDistance.ARC, GeoDistance.SLOPPY_ARC)) {
+                logger.info("Now testing GeoDistance={}, distance={}, origin=({}, {})", geoDistance, distance, originLat, originLon);
+                long matches = -1;
+                for (String optimizeBbox : Arrays.asList("none", "memory", "indexed")) {
+                    SearchResponse resp = client().prepareSearch("index").setSize(0).setQuery(QueryBuilders.constantScoreQuery(
+                            QueryBuilders.geoDistanceQuery("location").point(originLat, originLon).distance(distance).geoDistance(geoDistance).optimizeBbox(optimizeBbox))).execute().actionGet();
+                    assertSearchResponse(resp);
+                    logger.info("{} hits", resp.getHits().totalHits());
+                    if (matches < 0) {
+                        matches = resp.getHits().totalHits();
+                    } else {
+                        assertEquals(matches, resp.getHits().totalHits());
+                    }
+                }
+            }
+        }
+    }
 }

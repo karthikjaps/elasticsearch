@@ -23,9 +23,12 @@ import com.carrotsearch.hppc.ObjectIntMap;
 import com.carrotsearch.hppc.cursors.ObjectIntCursor;
 
 import org.apache.lucene.util.GeoHashUtils;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.GeoBoundingBoxQueryBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
@@ -33,6 +36,7 @@ import org.elasticsearch.search.aggregations.bucket.filter.Filter;
 import org.elasticsearch.search.aggregations.bucket.geogrid.GeoHashGrid;
 import org.elasticsearch.search.aggregations.bucket.geogrid.GeoHashGrid.Bucket;
 import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.test.VersionUtils;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -76,7 +80,9 @@ public class GeoHashGridIT extends ESIntegTestCase {
     public void setupSuiteScopeCluster() throws Exception {
         createIndex("idx_unmapped");
 
-        assertAcked(prepareCreate("idx")
+        Settings settings = Settings.settingsBuilder().put(IndexMetaData.SETTING_VERSION_CREATED, VersionUtils.randomVersionBetween(random(), Version.V_1_0_0,
+                Version.V_2_1_0)).build();
+        assertAcked(prepareCreate("idx").setSettings(settings)
                 .addMapping("type", "location", "type=geo_point,geohash=true", "city", "type=string,index=not_analyzed"));
 
         List<IndexRequestBuilder> cities = new ArrayList<>();
@@ -87,7 +93,6 @@ public class GeoHashGridIT extends ESIntegTestCase {
             double lat = (180d * random.nextDouble()) - 90d;
             double lng = (360d * random.nextDouble()) - 180d;
             String randomGeoHash = GeoHashUtils.stringEncode(lng, lat, highestPrecisionGeohash);
-            System.out.println(randomGeoHash + " (" + lng + ", " + lat + ")");
             //Index at the highest resolution
             cities.add(indexCity("idx", randomGeoHash, lat + ", " + lng));
             expectedDocCountsForGeoHash.put(randomGeoHash, expectedDocCountsForGeoHash.getOrDefault(randomGeoHash, 0) + 1);
@@ -102,7 +107,9 @@ public class GeoHashGridIT extends ESIntegTestCase {
         }
         indexRandom(true, cities);
 
-        assertAcked(prepareCreate("multi_valued_idx")
+        settings = Settings.settingsBuilder().put(IndexMetaData.SETTING_VERSION_CREATED, VersionUtils.randomVersionBetween(random(), Version.V_1_0_0,
+                Version.V_2_1_0)).build();
+        assertAcked(prepareCreate("multi_valued_idx").setSettings(settings)
                 .addMapping("type", "location", "type=geo_point", "city", "type=string,index=not_analyzed"));
 
         cities = new ArrayList<>();
@@ -130,7 +137,6 @@ public class GeoHashGridIT extends ESIntegTestCase {
 
         ensureSearchable();
     }
-
 
     @Test
     public void simple() throws Exception {
