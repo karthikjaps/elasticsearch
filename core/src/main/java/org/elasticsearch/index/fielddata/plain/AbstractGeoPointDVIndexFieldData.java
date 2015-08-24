@@ -54,17 +54,17 @@ public abstract class AbstractGeoPointDVIndexFieldData extends DocValuesIndexFie
      * 2.0 Lucene GeoPointFieldType
      */
     public static class GeoPointDVIndexFieldData extends AbstractGeoPointDVIndexFieldData {
-        final boolean bwc;
+        final boolean indexCreatedBefore2x;
 
-        public GeoPointDVIndexFieldData(Index index, Names fieldNames, FieldDataType fieldDataType, final boolean bwc) {
+        public GeoPointDVIndexFieldData(Index index, Names fieldNames, FieldDataType fieldDataType, final boolean indexCreatedBefore2x) {
             super(index, fieldNames, fieldDataType);
-            this.bwc = bwc;
+            this.indexCreatedBefore2x = indexCreatedBefore2x;
         }
 
         @Override
         public AtomicGeoPointFieldData load(LeafReaderContext context) {
             try {
-                return (bwc) ? new GeoPointLegacyDVAtomicFieldData(DocValues.getBinary(context.reader(), fieldNames.indexName())) :
+                return (indexCreatedBefore2x) ? new GeoPointLegacyDVAtomicFieldData(DocValues.getBinary(context.reader(), fieldNames.indexName())) :
                         new GeoPointDVAtomicFieldData(DocValues.getSortedNumeric(context.reader(), fieldNames.indexName()));
             } catch (IOException e) {
                 throw new IllegalStateException("Cannot load doc values", e);
@@ -83,7 +83,7 @@ public abstract class AbstractGeoPointDVIndexFieldData extends DocValuesIndexFie
                                        CircuitBreakerService breakerService, MapperService mapperService) {
             // Ignore breaker
             return new GeoPointDVIndexFieldData(index, fieldType.names(), fieldType.fieldDataType(),
-                    Version.indexCreated(indexSettings).before(Version.V_2_0_0_beta1));
+                    Version.indexCreated(indexSettings).before(Version.V_2_0_0));
         }
     }
 }

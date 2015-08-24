@@ -49,23 +49,23 @@ import org.elasticsearch.indices.breaker.CircuitBreakerService;
  */
 public class GeoPointArrayIndexFieldData extends AbstractIndexGeoPointFieldData {
     private final CircuitBreakerService breakerService;
-    private final boolean bwc;
+    private final boolean indexCreatedBefore2x;
 
     public static class Builder implements IndexFieldData.Builder {
         @Override
         public IndexFieldData<?> build(Index index, @IndexSettings Settings indexSettings, MappedFieldType fieldType, IndexFieldDataCache cache,
                                        CircuitBreakerService breakerService, MapperService mapperService) {
             return new GeoPointArrayIndexFieldData(index, indexSettings, fieldType.names(), fieldType.fieldDataType(), cache,
-                    breakerService, Version.indexCreated(indexSettings).before(Version.V_2_0_0_beta1));
+                    breakerService, Version.indexCreated(indexSettings).before(Version.V_2_0_0));
         }
     }
 
     public GeoPointArrayIndexFieldData(Index index, @IndexSettings Settings indexSettings, MappedFieldType.Names fieldNames,
                                        FieldDataType fieldDataType, IndexFieldDataCache cache, CircuitBreakerService breakerService,
-                                       final boolean bwc) {
+                                       final boolean indexCreatedBefore2x) {
         super(index, indexSettings, fieldNames, fieldDataType, cache);
         this.breakerService = breakerService;
-        this.bwc = bwc;
+        this.indexCreatedBefore2x = indexCreatedBefore2x;
     }
 
     @Override
@@ -81,7 +81,7 @@ public class GeoPointArrayIndexFieldData extends AbstractIndexGeoPointFieldData 
             estimator.afterLoad(null, data.ramBytesUsed());
             return data;
         }
-        return (bwc) ? loadLegacy(reader, estimator, terms, data) : load2_0DV(reader, estimator, terms, data);
+        return (indexCreatedBefore2x) ? loadLegacy(reader, estimator, terms, data) : load2_0DV(reader, estimator, terms, data);
     }
 
     private AtomicGeoPointFieldData load2_0DV(LeafReader reader, NonEstimatingEstimator estimator, Terms terms,

@@ -95,7 +95,7 @@ public final class MapperBuilders {
     }
 
     public static BaseGeoPointFieldMapper.Builder geoPointField(String name, Version version) {
-        return (version.onOrAfter(Version.V_2_0_0_beta1)) ?
+        return (version.onOrAfter(Version.V_2_0_0)) ?
                 new GeoPointFieldMapper.Builder(name) :
                 new GeoPointFieldMapperLegacy.Builder(name);
     }
