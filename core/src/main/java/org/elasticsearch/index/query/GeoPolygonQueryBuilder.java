@@ -18,13 +18,11 @@
  */
 
 package org.elasticsearch.index.query;
-
-import com.google.common.collect.Lists;
-
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class GeoPolygonQueryBuilder extends QueryBuilder {
@@ -33,7 +31,7 @@ public class GeoPolygonQueryBuilder extends QueryBuilder {
     
     private final String name;
 
-    private final List<GeoPoint> shell = Lists.newArrayList();
+    private final List<GeoPoint> shell = new ArrayList<>();
 
     private String queryName;
 

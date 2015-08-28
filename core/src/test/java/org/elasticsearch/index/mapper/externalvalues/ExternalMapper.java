@@ -20,7 +20,6 @@
 package org.elasticsearch.index.mapper.externalvalues;
 
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.spatial4j.core.shape.Point;
 import org.apache.lucene.document.Field;
 import org.elasticsearch.Version;
@@ -45,6 +44,7 @@ import org.elasticsearch.index.mapper.geo.GeoShapeFieldMapper;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -227,7 +227,7 @@ public class ExternalMapper extends FieldMapper {
 
     @Override
     public Iterator<Mapper> iterator() {
-        return Iterators.concat(super.iterator(), Lists.newArrayList(binMapper, boolMapper, pointMapper, shapeMapper, stringMapper).iterator());
+        return Iterators.concat(super.iterator(), Arrays.asList(binMapper, boolMapper, pointMapper, shapeMapper, stringMapper).iterator());
     }
 
     @Override
