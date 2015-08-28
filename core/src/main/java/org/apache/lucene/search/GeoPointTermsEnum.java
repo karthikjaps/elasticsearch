@@ -23,9 +23,7 @@ import org.apache.lucene.document.GeoPointField;
 import org.apache.lucene.index.FilteredTermsEnum;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.GeoUtils;
-import org.apache.lucene.util.NumericUtils;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -45,6 +43,7 @@ abstract class GeoPointTermsEnum extends FilteredTermsEnum {
 
   protected Range currentRange;
   private BytesRef currentCell;
+  private BytesRef nextSubRange;
 
   private final List<Range> rangeBounds = new LinkedList<>();
 
@@ -104,7 +103,7 @@ abstract class GeoPointTermsEnum extends FilteredTermsEnum {
     // if cell is within and a factor of the precision step, or it crosses the edge of the shape add the range
     final boolean within = res % GeoPointField.PRECISION_STEP == 0 && cellWithin(minLon, minLat, maxLon, maxLat);
     if (within || (level == DETAIL_LEVEL && cellIntersectsShape(minLon, minLat, maxLon, maxLat))) {
-      rangeBounds.add(new Range(start, res, level, !within));
+      rangeBounds.add(new Range(start, res, !within));
     } else if (level < DETAIL_LEVEL && cellIntersectsMBR(minLon, minLat, maxLon, maxLat)) {
       computeRange(start, (short) (res - 1));
     }
@@ -148,7 +147,7 @@ abstract class GeoPointTermsEnum extends FilteredTermsEnum {
 
   private void nextRange() {
     currentRange = rangeBounds.remove(0);
-    currentCell = currentRange.cell;
+    currentCell = currentRange.asBytesRef(currentCell);
   }
 
   @Override
@@ -166,8 +165,7 @@ abstract class GeoPointTermsEnum extends FilteredTermsEnum {
         }
       }
       // never seek backwards, so use current term if lower bound is smaller
-      return (term != null && term.compareTo(currentCell) > 0) ?
-          term : currentCell;
+      return (term != null && term.compareTo(currentCell) > 0) ? term : currentCell;
     }
 
     // no more sub-range enums available
@@ -192,7 +190,7 @@ abstract class GeoPointTermsEnum extends FilteredTermsEnum {
         return AcceptStatus.END;
       }
       // peek next sub-range, only seek if the current term is smaller than next lower bound
-      if (term.compareTo(rangeBounds.get(0).cell) < 0) {
+      if (term.compareTo(this.nextSubRange = rangeBounds.get(0).asBytesRef(this.nextSubRange)) < 0) {
         return AcceptStatus.NO_AND_SEEK;
       }
       // step forward to next range without seeking, as next range is less or equal current term
@@ -208,22 +206,49 @@ abstract class GeoPointTermsEnum extends FilteredTermsEnum {
    * Internal class to represent a range along the space filling curve
    */
   protected final class Range implements Comparable<Range> {
-    final BytesRef cell;
-    final short level;
+    final short shift;
+    final long start;
     final boolean boundary;
 
-    Range(final long lower, final short res, final short level, boolean boundary) {
-      this.level = level;
+    Range(final long lower, final short shift, boolean boundary) {
       this.boundary = boundary;
+      this.start = lower;
+      this.shift = shift;
+    }
 
-      BytesRefBuilder brb = new BytesRefBuilder();
-      NumericUtils.longToPrefixCodedBytes(lower, res, brb);
-      this.cell = brb.get();
+    /**
+     * Encode as a BytesRef using a reusable object. This allows us to lazily create the bytesRef (which is
+     * quite expensive), only when we need it.
+     */
+    private BytesRef asBytesRef(BytesRef reusable) {
+      if (reusable == null) {
+        reusable = new BytesRef(11);
+      }
+      reusable.length = 0;
+
+      final int s = (int)this.shift;
+      // ensure shift is 0..63
+      if ((s & ~0x3f) != 0) {
+        throw new IllegalArgumentException("Illegal shift value, must be 0..63; got shift=" + s);
+      }
+      int nChars = (((63-s)*37)>>8) + 1;    // i/7 is the same as (i*37)>>8 for i in 0..63
+      reusable.length = nChars+1;   // one extra for the byte that contains the shift info
+      reusable.bytes[0] = (byte)((byte)(0x20) + s);
+      long sortableBits = start ^ 0x8000000000000000L;
+      sortableBits >>>= s;
+      while (nChars > 0) {
+        // Store 7 bits per byte for compatibility
+        // with UTF-8 encoding of terms
+        reusable.bytes[nChars--] = (byte)(sortableBits & 0x7f);
+        sortableBits >>>= 7;
+      }
+      return reusable;
     }
 
     @Override
     public int compareTo(Range other) {
-      return this.cell.compareTo(other.cell);
+      final int result = Short.compare(this.shift, other.shift);
+      return (result == 0) ? Long.compare(this.start, other.start) : result;
     }
   }
 }
