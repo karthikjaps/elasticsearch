@@ -72,7 +72,6 @@ public class GeoDistanceQueryParser implements QueryParser {
         Object vDistance = null;
         DistanceUnit unit = DistanceUnit.DEFAULT;
         GeoDistance geoDistance = GeoDistance.DEFAULT;
-        boolean bwc = !parseContext.indexVersionCreated().onOrAfter(Version.V_2_0_0_beta1);
         String optimizeBbox = "memory";
         final boolean indexCreatedBeforeV2_0 = parseContext.indexVersionCreated().before(Version.V_2_0_0);
         boolean coerce = false;
@@ -175,7 +174,7 @@ public class GeoDistanceQueryParser implements QueryParser {
 
         IndexGeoPointFieldData indexFieldData = parseContext.getForField(fieldType);
         final Query query;
-        if (bwc) {
+        if (indexCreatedBeforeV2_0) {
             query = new GeoDistanceRangeQuery(point, null, distance, true, false, geoDistance,
                     ((GeoPointFieldMapperLegacy.GeoPointFieldType) fieldType), indexFieldData, optimizeBbox);
         } else {

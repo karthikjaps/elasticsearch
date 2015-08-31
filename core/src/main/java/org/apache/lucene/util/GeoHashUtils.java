@@ -157,7 +157,7 @@ public class GeoHashUtils {
     }
 
     private static final char encode(int x, int y) {
-        return org.apache.lucene.util.GeoHashUtils.BASE_32[((x & 1) + ((y & 1) * 2) + ((x & 2) * 2) + ((y & 2) * 4) + ((x & 4) * 4)) % 32];
+        return BASE_32[((x & 1) + ((y & 1) * 2) + ((x & 2) * 2) + ((y & 2) * 4) + ((x & 4) * 4)) % 32];
     }
 
     /**
@@ -180,7 +180,7 @@ public class GeoHashUtils {
      * @return geohash of the defined cell
      */
     private final static String neighbor(String geohash, int level, int dx, int dy) {
-        int cell = org.apache.lucene.util.GeoHashUtils.BASE_32_STRING.indexOf(geohash.charAt(level -1));
+        int cell = BASE_32_STRING.indexOf(geohash.charAt(level -1));
 
         // Decoding the Geohash bit pattern to determine grid coordinates
         int x0 = cell & 1;  // first bit of x

@@ -74,7 +74,6 @@ public class GeoDistanceRangeQueryParser implements QueryParser {
         boolean includeUpper = true;
         DistanceUnit unit = DistanceUnit.DEFAULT;
         GeoDistance geoDistance = GeoDistance.DEFAULT;
-        boolean bwc = !parseContext.indexVersionCreated().onOrAfter(Version.V_2_0_0_beta1);
         String optimizeBbox = "memory";
         final boolean indexCreatedBeforeV2_0 = parseContext.indexVersionCreated().before(Version.V_2_0_0);
         boolean coerce = false;
@@ -224,8 +223,10 @@ public class GeoDistanceRangeQueryParser implements QueryParser {
             to = new Double(GeoUtils.EARTH_SEMI_MINOR_AXIS);
         }
 
-        Query query = (bwc) ? new GeoDistanceRangeQuery(point, from, to, includeLower, includeUpper, geoDistance, (GeoPointFieldMapperLegacy.GeoPointFieldType)fieldType, indexFieldData, optimizeBbox) :
-                new GeoPointDistanceRangeQuery(indexFieldData.getFieldNames().indexName(), point.lon(), point.lat(), (includeLower) ? from : from+1, (includeUpper) ? to : to-1 );
+        Query query = (indexCreatedBeforeV2_0) ? new GeoDistanceRangeQuery(point, from, to, includeLower, includeUpper, geoDistance,
+                (GeoPointFieldMapperLegacy.GeoPointFieldType)fieldType, indexFieldData, optimizeBbox) :
+                new GeoPointDistanceRangeQuery(indexFieldData.getFieldNames().indexName(), point.lon(), point.lat(),
+                        (includeLower) ? from : from+1, (includeUpper) ? to : to-1 );
 
         if (queryName != null) {
             parseContext.addNamedQuery(queryName, query);
