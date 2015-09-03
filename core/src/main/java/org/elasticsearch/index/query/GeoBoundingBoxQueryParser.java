@@ -19,7 +19,7 @@
 
 package org.elasticsearch.index.query;
 
-import org.apache.lucene.search.GeoPointInBBoxQuery;
+import org.apache.lucene.search.XGeoPointInBBoxQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.Version;
@@ -199,7 +199,7 @@ public class GeoBoundingBoxQueryParser implements QueryParser {
 
         Query query;
         if (!indexCreatedBeforeV2_0) {
-           query = new GeoPointInBBoxQuery(fieldType.names().fullName(), topLeft.lon(), bottomRight.lat(), bottomRight.lon(), topLeft.lat());
+           query = new XGeoPointInBBoxQuery(fieldType.names().fullName(), topLeft.lon(), bottomRight.lat(), bottomRight.lon(), topLeft.lat());
         } else if ("indexed".equals(type)) {
             query = IndexedGeoBoundingBoxQuery.create(topLeft, bottomRight, (GeoPointFieldMapperLegacy.GeoPointFieldType) fieldType);
         } else if ("memory".equals(type)) {

@@ -20,10 +20,10 @@
 package org.elasticsearch.common.geo;
 
 
-import org.apache.lucene.document.GeoPointField;
+import org.apache.lucene.document.XGeoPointField;
 import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.util.GeoHashUtils;
-import org.apache.lucene.util.GeoUtils;
+import org.apache.lucene.util.XGeoHashUtils;
+import org.apache.lucene.util.XGeoUtils;
 
 /**
  *
@@ -32,7 +32,7 @@ public final class GeoPoint {
 
     private double lat;
     private double lon;
-    private final static double TOLERANCE = org.apache.lucene.util.GeoUtils.TOLERANCE;
+    private final static double TOLERANCE = XGeoUtils.TOLERANCE;
 
     public GeoPoint() {
     }
@@ -53,12 +53,12 @@ public final class GeoPoint {
     }
 
     public GeoPoint(IndexableField fieldData) {
-        if (fieldData instanceof GeoPointField) {
-            this.lat = ((GeoPointField) (fieldData)).getLat();
-            this.lon = ((GeoPointField) fieldData).getLon();
+        if (fieldData instanceof XGeoPointField) {
+            this.lat = ((XGeoPointField) (fieldData)).getLat();
+            this.lon = ((XGeoPointField) fieldData).getLon();
         } else {
             throw new IllegalArgumentException("found an instance of  " + fieldData.getClass()
-            + " when expecting an instance of " + GeoPointField.class);
+            + " when expecting an instance of " + XGeoPointField.class);
         }
     }
 
@@ -90,19 +90,19 @@ public final class GeoPoint {
     }
 
     public GeoPoint resetFromIndexHash(long hash) {
-        lon = GeoUtils.mortonUnhashLon(hash);
-        lat = GeoUtils.mortonUnhashLat(hash);
+        lon = XGeoUtils.mortonUnhashLon(hash);
+        lat = XGeoUtils.mortonUnhashLat(hash);
         return this;
     }
 
     public GeoPoint resetFromGeohashString(String geohash) {
-        final long hash = GeoHashUtils.mortonEncode(geohash);
-        return this.reset(GeoUtils.mortonUnhashLat(hash), GeoUtils.mortonUnhashLon(hash));
+        final long hash = XGeoHashUtils.mortonEncode(geohash);
+        return this.reset(XGeoUtils.mortonUnhashLat(hash), XGeoUtils.mortonUnhashLon(hash));
     }
 
     public GeoPoint resetFromGeohashLong(long geohashLong) {
         final int level = (int)(12 - (geohashLong&15));
-        return this.resetFromIndexHash(GeoUtils.flipFlop((geohashLong>>>4)<<((level*5)+2)));
+        return this.resetFromIndexHash(XGeoUtils.flipFlop((geohashLong >>> 4) << ((level * 5) + 2)));
     }
 
     public final double lat() {
@@ -122,11 +122,11 @@ public final class GeoPoint {
     }
 
     public final String geohash() {
-        return GeoHashUtils.stringEncode(lon, lat);
+        return XGeoHashUtils.stringEncode(lon, lat);
     }
 
     public final String getGeohash() {
-        return GeoHashUtils.stringEncode(lon, lat);
+        return XGeoHashUtils.stringEncode(lon, lat);
     }
 
     @Override

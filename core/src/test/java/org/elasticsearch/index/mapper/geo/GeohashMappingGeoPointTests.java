@@ -19,8 +19,8 @@
 
 package org.elasticsearch.index.mapper.geo;
 
-import org.apache.lucene.util.GeoUtils;
-import org.apache.lucene.util.GeoHashUtils;
+import org.apache.lucene.util.XGeoUtils;
+import org.apache.lucene.util.XGeoHashUtils;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -52,7 +52,7 @@ public class GeohashMappingGeoPointTests extends ESSingleNodeTestCase {
 
         MatcherAssert.assertThat(doc.rootDoc().getField("point.lat"), nullValue());
         MatcherAssert.assertThat(doc.rootDoc().getField("point.lon"), nullValue());
-        MatcherAssert.assertThat(doc.rootDoc().get("point"), equalTo(GeoUtils.mortonHash(1.3, 1.2)+""));
+        MatcherAssert.assertThat(doc.rootDoc().get("point"), equalTo(XGeoUtils.mortonHash(1.3, 1.2)+""));
     }
 
     @Test
@@ -71,7 +71,7 @@ public class GeohashMappingGeoPointTests extends ESSingleNodeTestCase {
 
         MatcherAssert.assertThat(doc.rootDoc().getField("point.lat"), nullValue());
         MatcherAssert.assertThat(doc.rootDoc().getField("point.lon"), nullValue());
-        MatcherAssert.assertThat(doc.rootDoc().get("point"), equalTo(GeoUtils.mortonHash(1.3, 1.2)+""));
+        MatcherAssert.assertThat(doc.rootDoc().get("point"), equalTo(XGeoUtils.mortonHash(1.3, 1.2)+""));
     }
 
     @Test
@@ -84,13 +84,13 @@ public class GeohashMappingGeoPointTests extends ESSingleNodeTestCase {
 
         ParsedDocument doc = defaultMapper.parse("test", "type", "1", XContentFactory.jsonBuilder()
                 .startObject()
-                .field("point", GeoHashUtils.stringEncode(1.3, 1.2))
+                .field("point", XGeoHashUtils.stringEncode(1.3, 1.2))
                 .endObject()
                 .bytes());
 
         MatcherAssert.assertThat(doc.rootDoc().getField("point.lat"), nullValue());
         MatcherAssert.assertThat(doc.rootDoc().getField("point.lon"), nullValue());
-        MatcherAssert.assertThat(doc.rootDoc().get("point.geohash"), equalTo(GeoHashUtils.stringEncode(1.3, 1.2)));
+        MatcherAssert.assertThat(doc.rootDoc().get("point.geohash"), equalTo(XGeoHashUtils.stringEncode(1.3, 1.2)));
         MatcherAssert.assertThat(doc.rootDoc().get("point"), notNullValue());
     }
 

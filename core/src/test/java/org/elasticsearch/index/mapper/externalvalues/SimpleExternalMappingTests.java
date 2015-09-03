@@ -19,7 +19,7 @@
 
 package org.elasticsearch.index.mapper.externalvalues;
 
-import org.apache.lucene.util.GeoUtils;
+import org.apache.lucene.util.XGeoUtils;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.DocumentMapper;
@@ -64,7 +64,7 @@ public class SimpleExternalMappingTests extends ESSingleNodeTestCase {
 
         GeoPoint point = ExternalMapper.geoPointTest;
         assertThat(doc.rootDoc().getField("field.point"), notNullValue());
-        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(GeoUtils.mortonHash(point.lon(), point.lat())+""));
+        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(XGeoUtils.mortonHash(point.lon(), point.lat())+""));
 
         assertThat(doc.rootDoc().getField("field.shape"), notNullValue());
 
@@ -113,7 +113,7 @@ public class SimpleExternalMappingTests extends ESSingleNodeTestCase {
 
         GeoPoint point = ExternalMapper.geoPointTest;
         assertThat(doc.rootDoc().getField("field.point"), notNullValue());
-        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(GeoUtils.mortonHash(point.lon(), point.lat())+""));
+        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(XGeoUtils.mortonHash(point.lon(), point.lat())+""));
 
         assertThat(doc.rootDoc().getField("field.shape"), notNullValue());
 
@@ -168,7 +168,7 @@ public class SimpleExternalMappingTests extends ESSingleNodeTestCase {
 
         GeoPoint point = ExternalMapper.geoPointTest;
         assertThat(doc.rootDoc().getField("field.point"), notNullValue());
-        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(GeoUtils.mortonHash(point.lon(), point.lat())+""));
+        assertThat(doc.rootDoc().getField("field.point").stringValue(), is(XGeoUtils.mortonHash(point.lon(), point.lat())+""));
 
         assertThat(doc.rootDoc().getField("field.shape"), notNullValue());
 

@@ -21,7 +21,7 @@ package org.elasticsearch.index.mapper.multifield;
 
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.util.GeoUtils;
+import org.apache.lucene.util.XGeoUtils;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
@@ -289,7 +289,7 @@ public class MultiFieldTests extends ESSingleNodeTestCase {
         f = doc.getField("a.b");
         assertThat(f, notNullValue());
         assertThat(f.name(), equalTo("a.b"));
-        long hash = GeoUtils.mortonHash(-1.0, -1.0);
+        long hash = XGeoUtils.mortonHash(-1.0, -1.0);
         assertThat(Long.parseLong(f.stringValue()), equalTo(hash));
         assertThat(f.fieldType().stored(), equalTo(true));
         assertNotSame(IndexOptions.NONE, f.fieldType().indexOptions());
@@ -340,7 +340,7 @@ public class MultiFieldTests extends ESSingleNodeTestCase {
         f = doc.getFields("b")[1];
         assertThat(f, notNullValue());
         assertThat(f.name(), equalTo("b"));
-        hash = GeoUtils.mortonHash(-2.0, -2.0);
+        hash = XGeoUtils.mortonHash(-2.0, -2.0);
         assertThat(Long.parseLong(f.stringValue()), equalTo(hash));
         assertThat(f.fieldType().stored(), equalTo(true));
         assertNotSame(IndexOptions.NONE, f.fieldType().indexOptions());

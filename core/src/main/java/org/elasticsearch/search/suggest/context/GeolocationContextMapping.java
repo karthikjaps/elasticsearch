@@ -22,14 +22,14 @@ package org.elasticsearch.search.suggest.context;
 import com.carrotsearch.hppc.IntHashSet;
 import org.apache.lucene.analysis.PrefixAnalyzer.PrefixTokenFilter;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.document.GeoPointField;
+import org.apache.lucene.document.XGeoPointField;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.automaton.Automata;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.Operations;
 import org.apache.lucene.util.fst.FST;
-import org.apache.lucene.util.GeoHashUtils;
+import org.apache.lucene.util.XGeoHashUtils;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
@@ -228,7 +228,7 @@ public class GeolocationContextMapping extends ContextMapping {
                 if(parser.nextToken() == Token.VALUE_NUMBER) {
                     double lat = parser.doubleValue();
                     if(parser.nextToken() == Token.END_ARRAY) {
-                        return Collections.singleton(GeoHashUtils.stringEncode(lon, lat));
+                        return Collections.singleton(XGeoHashUtils.stringEncode(lon, lat));
                     } else {
                         throw new ElasticsearchParseException("only two values expected");
                     }
@@ -295,7 +295,7 @@ public class GeolocationContextMapping extends ContextMapping {
      * @return new geolocation query
      */
     public static GeoQuery query(String name, double lat, double lon, int ... precisions) {
-        return query(name, GeoHashUtils.stringEncode(lon, lat), precisions);
+        return query(name, XGeoHashUtils.stringEncode(lon, lat), precisions);
     }
 
     public static GeoQuery query(String name, double lat, double lon, String ... precisions) {
@@ -303,7 +303,7 @@ public class GeolocationContextMapping extends ContextMapping {
         for (int i = 0 ; i < precisions.length; i++) {
             precisionInts[i] = GeoUtils.geoHashLevelsForPrecision(precisions[i]);
         }
-        return query(name, GeoHashUtils.stringEncode(lon, lat), precisionInts);
+        return query(name, XGeoHashUtils.stringEncode(lon, lat), precisionInts);
     }
 
     /**
@@ -575,7 +575,7 @@ public class GeolocationContextMapping extends ContextMapping {
          * @return this
          */
         public Builder addDefaultLocation(double lat, double lon) {
-            this.defaultLocations.add(GeoHashUtils.stringEncode(lon, lat));
+            this.defaultLocations.add(XGeoHashUtils.stringEncode(lon, lat));
             return this;
         }
 
@@ -605,7 +605,7 @@ public class GeolocationContextMapping extends ContextMapping {
         @Override
         public GeolocationContextMapping build() {
             if(precisions.isEmpty()) {
-                precisions.add(GeoHashUtils.PRECISION);
+                precisions.add(XGeoHashUtils.PRECISION);
             }
             int[] precisionArray = precisions.toArray();
             Arrays.sort(precisionArray);
@@ -655,7 +655,7 @@ public class GeolocationContextMapping extends ContextMapping {
                         GeoPoint spare = new GeoPoint();
                         for (IndexableField field : fields) {
                             // docvalues not supported
-                            if (field instanceof GeoPointField) {
+                            if (field instanceof XGeoPointField) {
                                 spare.resetFromIndexHash((long) field.numericValue());
                                 geohashes.add(spare.geohash());
                             }
@@ -674,7 +674,7 @@ public class GeolocationContextMapping extends ContextMapping {
                     int precision = Math.min(p, geohash.length());
                     String truncatedGeohash = geohash.substring(0, precision);
                     if(mapping.neighbors) {
-                        GeoHashUtils.addNeighbors(truncatedGeohash, precision, locations);
+                        XGeoHashUtils.addNeighbors(truncatedGeohash, precision, locations);
                     }
                     locations.add(truncatedGeohash);
                 }

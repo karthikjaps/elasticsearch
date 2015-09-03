@@ -21,7 +21,7 @@ package org.elasticsearch.index.mapper.geo;
 
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.GeoPointField;
+import org.apache.lucene.document.XGeoPointField;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
 import org.elasticsearch.common.Strings;
@@ -65,7 +65,7 @@ public class GeoPointFieldMapper extends BaseGeoPointFieldMapper  {
             FIELD_TYPE.setTokenized(false);
             FIELD_TYPE.setOmitNorms(true);
             FIELD_TYPE.setNumericType(FieldType.NumericType.LONG);
-            FIELD_TYPE.setNumericPrecisionStep(GeoPointField.PRECISION_STEP);
+            FIELD_TYPE.setNumericPrecisionStep(XGeoPointField.PRECISION_STEP);
             FIELD_TYPE.setDocValuesType(DocValuesType.SORTED_NUMERIC);
             FIELD_TYPE.setHasDocValues(true);
             FIELD_TYPE.setStored(true);
@@ -190,7 +190,7 @@ public class GeoPointFieldMapper extends BaseGeoPointFieldMapper  {
             GeoUtils.normalizePoint(point);
         }
         if (fieldType().indexOptions() != IndexOptions.NONE || fieldType().stored()) {
-            context.doc().add(new GeoPointField(fieldType().names().indexName(), point.lon(), point.lat(), fieldType() ));
+            context.doc().add(new XGeoPointField(fieldType().names().indexName(), point.lon(), point.lat(), fieldType() ));
         }
         super.parse(context, point, geohash);
     }

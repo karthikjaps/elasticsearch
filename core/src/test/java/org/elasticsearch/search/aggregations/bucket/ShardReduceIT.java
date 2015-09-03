@@ -18,7 +18,7 @@
  */
 package org.elasticsearch.search.aggregations.bucket;
 
-import org.apache.lucene.util.GeoHashUtils;
+import org.apache.lucene.util.XGeoHashUtils;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -65,7 +65,7 @@ public class ShardReduceIT extends ESIntegTestCase {
                 .startObject()
                 .field("value", value)
                 .field("ip", "10.0.0." + value)
-                .field("location", GeoHashUtils.stringEncode(5, 52, 12))
+                .field("location", XGeoHashUtils.stringEncode(5, 52, 12))
                 .field("date", date)
                 .field("term-l", 1)
                 .field("term-d", 1.5)

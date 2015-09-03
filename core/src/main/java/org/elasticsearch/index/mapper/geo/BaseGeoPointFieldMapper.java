@@ -21,7 +21,7 @@ package org.elasticsearch.index.mapper.geo;
 
 import com.google.common.collect.Iterators;
 import org.apache.lucene.index.IndexOptions;
-import org.apache.lucene.util.GeoHashUtils;
+import org.apache.lucene.util.XGeoHashUtils;
 import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.Strings;
@@ -77,7 +77,7 @@ public abstract class BaseGeoPointFieldMapper extends FieldMapper implements Arr
         public static final boolean ENABLE_LATLON = false;
         public static final boolean ENABLE_GEOHASH = false;
         public static final boolean ENABLE_GEOHASH_PREFIX = false;
-        public static final int GEO_HASH_PRECISION = GeoHashUtils.PRECISION;
+        public static final int GEO_HASH_PRECISION = XGeoHashUtils.PRECISION;
         public static final boolean IGNORE_MALFORMED = false;
     }
 
@@ -260,20 +260,20 @@ public abstract class BaseGeoPointFieldMapper extends FieldMapper implements Arr
             super.checkCompatibility(fieldType, conflicts, strict);
             BaseGeoPointFieldType other = (BaseGeoPointFieldType)fieldType;
             if (isLatLonEnabled() != other.isLatLonEnabled()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different lat_lon");
+                conflicts.add("mapper [" + names().fullName() + "] has different [lat_lon]");
             }
             if (isLatLonEnabled() && other.isLatLonEnabled() &&
                     latFieldType().numericPrecisionStep() != other.latFieldType().numericPrecisionStep()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different precision_step");
+                conflicts.add("mapper [" + names().fullName() + "] has different [precision_step]");
             }
             if (isGeohashEnabled() != other.isGeohashEnabled()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different geohash");
+                conflicts.add("mapper [" + names().fullName() + "] has different [geohash]");
             }
             if (geohashPrecision() != other.geohashPrecision()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different geohash_precision");
+                conflicts.add("mapper [" + names().fullName() + "] has different [geohash_precision]");
             }
             if (isGeohashPrefixEnabled() != other.isGeohashPrefixEnabled()) {
-                conflicts.add("mapper [" + names().fullName() + "] has different geohash_prefix");
+                conflicts.add("mapper [" + names().fullName() + "] has different [geohash_prefix]");
             }
         }
 
@@ -373,7 +373,7 @@ public abstract class BaseGeoPointFieldMapper extends FieldMapper implements Arr
     protected void parse(ParseContext context, GeoPoint point, String geohash) throws IOException {
         if (fieldType().isGeohashEnabled()) {
             if (geohash == null) {
-                geohash = GeoHashUtils.stringEncode(point.lon(), point.lat());
+                geohash = XGeoHashUtils.stringEncode(point.lon(), point.lat());
             }
             addGeohashField(context, geohash);
         }

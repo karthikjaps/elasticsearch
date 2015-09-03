@@ -19,13 +19,13 @@
 package org.elasticsearch.common.geo;
 
 import org.elasticsearch.test.ESTestCase;
-import org.apache.lucene.util.GeoHashUtils;
+import org.apache.lucene.util.XGeoHashUtils;
 import org.junit.Test;
 
 
 
 /**
- * Tests for {@link GeoHashUtils}
+ * Tests for {@link org.apache.lucene.util.XGeoHashUtils}
  */
 public class GeoHashTests extends ESTestCase {
 
@@ -43,13 +43,13 @@ public class GeoHashTests extends ESTestCase {
             {
                 for(int p=1;p<=12;p++)
                 {
-                    long geoAsLong = GeoHashUtils.longEncode(lng, lat, p);
+                    long geoAsLong = XGeoHashUtils.longEncode(lng, lat, p);
 
                     // string encode from geohashlong encoded location
-                    String geohashFromLong = GeoHashUtils.stringEncode(geoAsLong);
+                    String geohashFromLong = XGeoHashUtils.stringEncode(geoAsLong);
 
                     // string encode from full res lat lon
-                    String geohash = GeoHashUtils.stringEncode(lng, lat, p);
+                    String geohash = XGeoHashUtils.stringEncode(lng, lat, p);
 
                     // ensure both strings are the same
                     assertEquals(geohash, geohashFromLong);

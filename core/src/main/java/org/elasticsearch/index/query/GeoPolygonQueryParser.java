@@ -19,7 +19,7 @@
 
 package org.elasticsearch.index.query;
 
-import org.apache.lucene.search.GeoPointInPolygonQuery;
+import org.apache.lucene.search.XGeoPointInPolygonQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.geo.GeoPoint;
@@ -178,7 +178,7 @@ public class GeoPolygonQueryParser implements QueryParser {
         final String field = indexFieldData.getFieldNames().indexName();
 
         Query query = (indexCreatedBeforeV2_0) ? new GeoPolygonQuery(indexFieldData, shell.toArray(new GeoPoint[shell.size()]))
-                :  new GeoPointInPolygonQuery(field, lons, lats);
+                :  new XGeoPointInPolygonQuery(field, lons, lats);
 
         if (queryName != null) {
             parseContext.addNamedQuery(queryName, query);

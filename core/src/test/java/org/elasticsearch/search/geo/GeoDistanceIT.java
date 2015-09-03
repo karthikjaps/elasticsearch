@@ -19,7 +19,7 @@
 
 package org.elasticsearch.search.geo;
 
-import org.apache.lucene.util.GeoHashUtils;
+import org.apache.lucene.util.XGeoHashUtils;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
@@ -30,7 +30,6 @@ import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.index.mapper.DocumentMapperParser;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.Script;
@@ -671,7 +670,7 @@ public class GeoDistanceIT extends ESIntegTestCase {
 
         XContentBuilder source = JsonXContent.contentBuilder()
                 .startObject()
-                    .field("pin", GeoHashUtils.stringEncode(lon, lat))
+                    .field("pin", XGeoHashUtils.stringEncode(lon, lat))
                 .endObject();
 
         assertAcked(prepareCreate("locations").addMapping("location", mapping));

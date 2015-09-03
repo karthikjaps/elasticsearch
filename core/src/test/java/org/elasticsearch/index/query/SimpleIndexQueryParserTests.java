@@ -36,9 +36,9 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.DisjunctionMaxQuery;
 import org.apache.lucene.search.FuzzyQuery;
-import org.apache.lucene.search.GeoPointDistanceQuery;
-import org.apache.lucene.search.GeoPointInBBoxQuery;
-import org.apache.lucene.search.GeoPointInPolygonQuery;
+import org.apache.lucene.search.XGeoPointDistanceQuery;
+import org.apache.lucene.search.XGeoPointInBBoxQuery;
+import org.apache.lucene.search.XGeoPointInPolygonQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.MultiTermQuery;
 import org.apache.lucene.search.NumericRangeQuery;
@@ -1791,7 +1791,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         assertThat(parsedQuery.namedFilters().containsKey("test"), equalTo(true));
         assertThat(parsedQuery.query(), instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery.query();
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1805,7 +1805,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1819,7 +1819,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1833,7 +1833,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1847,7 +1847,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1861,7 +1861,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1875,7 +1875,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1889,7 +1889,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1903,7 +1903,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1917,7 +1917,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1931,7 +1931,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1945,7 +1945,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getCenterLon(), closeTo(-70, 0.00001));
@@ -1959,7 +1959,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointDistanceQuery filter = (GeoPointDistanceQuery) constantScoreQuery.getQuery();
+        XGeoPointDistanceQuery filter = (XGeoPointDistanceQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getCenterLat(), closeTo(40, 0.00001));
         assertThat(filter.getRadius(), closeTo(DistanceUnit.DEFAULT.convert(12, DistanceUnit.MILES), 0.00001));
@@ -1973,7 +1973,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         assertThat(parsedQuery.query(), instanceOf(ConstantScoreQuery.class));
         assertThat(parsedQuery.namedFilters().containsKey("test"), equalTo(true));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery.query();
-        GeoPointInBBoxQuery filter = (GeoPointInBBoxQuery) constantScoreQuery.getQuery();
+        XGeoPointInBBoxQuery filter = (XGeoPointInBBoxQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getMaxLat(), closeTo(40, 0.00001));
         assertThat(filter.getMinLon(), closeTo(-70, 0.00001));
@@ -1988,7 +1988,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInBBoxQuery filter = (GeoPointInBBoxQuery) constantScoreQuery.getQuery();
+        XGeoPointInBBoxQuery filter = (XGeoPointInBBoxQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getMaxLat(), closeTo(40, 0.00001));
         assertThat(filter.getMinLon(), closeTo(-70, 0.00001));
@@ -2003,7 +2003,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInBBoxQuery filter = (GeoPointInBBoxQuery) constantScoreQuery.getQuery();
+        XGeoPointInBBoxQuery filter = (XGeoPointInBBoxQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getMaxLat(), closeTo(40, 0.00001));
         assertThat(filter.getMinLon(), closeTo(-70, 0.00001));
@@ -2018,7 +2018,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInBBoxQuery filter = (GeoPointInBBoxQuery) constantScoreQuery.getQuery();
+        XGeoPointInBBoxQuery filter = (XGeoPointInBBoxQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getMaxLat(), closeTo(40, 0.00001));
         assertThat(filter.getMinLon(), closeTo(-70, 0.00001));
@@ -2033,7 +2033,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInBBoxQuery filter = (GeoPointInBBoxQuery) constantScoreQuery.getQuery();
+        XGeoPointInBBoxQuery filter = (XGeoPointInBBoxQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getMaxLat(), closeTo(40, 0.00001));
         assertThat(filter.getMinLon(), closeTo(-70, 0.00001));
@@ -2048,7 +2048,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInBBoxQuery filter = (GeoPointInBBoxQuery) constantScoreQuery.getQuery();
+        XGeoPointInBBoxQuery filter = (XGeoPointInBBoxQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getMaxLat(), closeTo(40, 0.00001));
         assertThat(filter.getMinLon(), closeTo(-70, 0.00001));
@@ -2063,7 +2063,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInBBoxQuery filter = (GeoPointInBBoxQuery) constantScoreQuery.getQuery();
+        XGeoPointInBBoxQuery filter = (XGeoPointInBBoxQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getMaxLat(), closeTo(40, 0.00001));
         assertThat(filter.getMinLon(), closeTo(-70, 0.00001));
@@ -2080,7 +2080,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         assertThat(parsedQuery.namedFilters().containsKey("test"), equalTo(true));
         assertThat(parsedQuery.query(), instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery.query();
-        GeoPointInPolygonQuery filter = (GeoPointInPolygonQuery) constantScoreQuery.getQuery();
+        XGeoPointInPolygonQuery filter = (XGeoPointInPolygonQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getLats().length, equalTo(4));
         assertThat(filter.getLons().length, equalTo(4));
@@ -2122,7 +2122,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInPolygonQuery filter = (GeoPointInPolygonQuery) constantScoreQuery.getQuery();
+        XGeoPointInPolygonQuery filter = (XGeoPointInPolygonQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getLats().length, equalTo(4));
         assertThat(filter.getLons().length, equalTo(4));
@@ -2141,7 +2141,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInPolygonQuery filter = (GeoPointInPolygonQuery) constantScoreQuery.getQuery();
+        XGeoPointInPolygonQuery filter = (XGeoPointInPolygonQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getLats().length, equalTo(4));
         assertThat(filter.getLons().length, equalTo(4));
@@ -2160,7 +2160,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInPolygonQuery filter = (GeoPointInPolygonQuery) constantScoreQuery.getQuery();
+        XGeoPointInPolygonQuery filter = (XGeoPointInPolygonQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getLats().length, equalTo(4));
         assertThat(filter.getLons().length, equalTo(4));
@@ -2179,7 +2179,7 @@ public class SimpleIndexQueryParserTests extends ESSingleNodeTestCase {
         Query parsedQuery = queryParser.parse(query).query();
         assertThat(parsedQuery, instanceOf(ConstantScoreQuery.class));
         ConstantScoreQuery constantScoreQuery = (ConstantScoreQuery) parsedQuery;
-        GeoPointInPolygonQuery filter = (GeoPointInPolygonQuery) constantScoreQuery.getQuery();
+        XGeoPointInPolygonQuery filter = (XGeoPointInPolygonQuery) constantScoreQuery.getQuery();
         assertThat(filter.getField(), equalTo("location"));
         assertThat(filter.getLats().length, equalTo(4));
         assertThat(filter.getLons().length, equalTo(4));

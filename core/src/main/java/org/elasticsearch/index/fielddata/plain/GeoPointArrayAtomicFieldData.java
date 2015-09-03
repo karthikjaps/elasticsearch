@@ -24,7 +24,7 @@ import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.BitSet;
-import org.apache.lucene.util.GeoUtils;
+import org.apache.lucene.util.XGeoUtils;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.util.LongArray;
@@ -83,8 +83,8 @@ public abstract class GeoPointArrayAtomicFieldData extends AbstractAtomicGeoPoin
                         if (ord >= 0) {
                             final long hashedPoint = indexedPoints.get(ord);
 
-                            point.reset(GeoUtils.mortonUnhashLat(hashedPoint),
-                                    GeoUtils.mortonUnhashLon(hashedPoint));
+                            point.reset(XGeoUtils.mortonUnhashLat(hashedPoint),
+                                    XGeoUtils.mortonUnhashLon(hashedPoint));
                         }
                         return point;
                     }
@@ -96,8 +96,8 @@ public abstract class GeoPointArrayAtomicFieldData extends AbstractAtomicGeoPoin
                 public GeoPoint valueAt(int index) {
                     final long ord = ords.ordAt(index);
                     final long hashedPoint = indexedPoints.get(ord);
-                    return point.reset(GeoUtils.mortonUnhashLat(hashedPoint),
-                                GeoUtils.mortonUnhashLon(hashedPoint));
+                    return point.reset(XGeoUtils.mortonUnhashLat(hashedPoint),
+                                XGeoUtils.mortonUnhashLon(hashedPoint));
                 }
 
                 @Override

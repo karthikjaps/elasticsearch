@@ -19,7 +19,7 @@
 
 package org.elasticsearch.index.query;
 
-import org.apache.lucene.search.GeoPointDistanceRangeQuery;
+import org.apache.lucene.search.XGeoPointDistanceRangeQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.geo.GeoDistance;
@@ -225,7 +225,7 @@ public class GeoDistanceRangeQueryParser implements QueryParser {
 
         Query query = (indexCreatedBeforeV2_0) ? new GeoDistanceRangeQuery(point, from, to, includeLower, includeUpper, geoDistance,
                 (GeoPointFieldMapperLegacy.GeoPointFieldType)fieldType, indexFieldData, optimizeBbox) :
-                new GeoPointDistanceRangeQuery(indexFieldData.getFieldNames().indexName(), point.lon(), point.lat(),
+                new XGeoPointDistanceRangeQuery(indexFieldData.getFieldNames().indexName(), point.lon(), point.lat(),
                         (includeLower) ? from : from+1, (includeUpper) ? to : to-1 );
 
         if (queryName != null) {

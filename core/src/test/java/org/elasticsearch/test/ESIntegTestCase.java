@@ -191,7 +191,7 @@ import static org.hamcrest.Matchers.*;
  * should be used, here is an example:
  * <pre>
  *
- * @ClusterScope(scope=Scope.TEST) public class SomeIntegrationTest extends ESIntegTestCase {
+ * @ClusterScope(scope=Scope.TEST) public class SomeIT extends ESIntegTestCase {
  * @Test public void testMethod() {}
  * }
  * </pre>
@@ -204,7 +204,7 @@ import static org.hamcrest.Matchers.*;
  * <p/>
  *  <pre>
  * @ClusterScope(scope=Scope.SUITE, numDataNodes=3)
- * public class SomeIntegrationTest extends ESIntegTestCase {
+ * public class SomeIT extends ESIntegTestCase {
  * @Test public void testMethod() {}
  * }
  * </pre>
@@ -218,7 +218,7 @@ import static org.hamcrest.Matchers.*;
  * This class supports the following system properties (passed with -Dkey=value to the application)
  * <ul>
  * <li>-D{@value #TESTS_CLIENT_RATIO} - a double value in the interval [0..1] which defines the ration between node and transport clients used</li>
- * <li>-D{@value InternalTestCluster#TESTS_ENABLE_MOCK_MODULES} - a boolean value to enable or disable mock modules. This is
+ * <li>-D{@value #TESTS_ENABLE_MOCK_MODULES} - a boolean value to enable or disable mock modules. This is
  * useful to test the system without asserting modules that to make sure they don't hide any bugs in production.</li>
  * <li> - a random seed used to initialize the index random context.
  * </ul>
@@ -267,6 +267,15 @@ public abstract class ESIntegTestCase extends ESTestCase {
      * It's set once per test via a generic index template.
      */
     public static final String SETTING_INDEX_SEED = "index.tests.seed";
+
+    /**
+     * A boolean value to enable or disable mock modules. This is useful to test the
+     * system without asserting modules that to make sure they don't hide any bugs in
+     * production.
+     *
+     * @see ESIntegTestCase
+     */
+    public static final String TESTS_ENABLE_MOCK_MODULES = "tests.enable_mock_modules";
 
     /**
      * Threshold at which indexing switches from frequently async to frequently bulk.
@@ -335,7 +344,6 @@ public abstract class ESIntegTestCase extends ESTestCase {
             cluster().beforeTest(getRandom(), getPerTestTransportClientRatio());
             cluster().wipe();
             randomIndexTemplate();
-            printTestMessage("before");
         } catch (OutOfMemoryError e) {
             if (e.getMessage().contains("unable to create new native thread")) {
                 ESTestCase.printStackDump(logger);
@@ -345,7 +353,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
     }
 
     private void printTestMessage(String message) {
-        if (isSuiteScopedTest(getClass())) {
+        if (isSuiteScopedTest(getClass()) && (getTestName().equals("<unknown>"))) {
             logger.info("[{}]: {} suite", getTestClass().getSimpleName(), message);
         } else {
             logger.info("[{}#{}]: {} test", getTestClass().getSimpleName(), getTestName(), message);
@@ -584,7 +592,6 @@ public abstract class ESIntegTestCase extends ESTestCase {
         boolean success = false;
         try {
             final Scope currentClusterScope = getCurrentClusterScope();
-            printTestMessage("cleaning up after");
             clearDisruptionScheme();
             try {
                 if (cluster() != null) {
@@ -609,7 +616,6 @@ public abstract class ESIntegTestCase extends ESTestCase {
                     clearClusters(); // it is ok to leave persistent / transient cluster state behind if scope is TEST
                 }
             }
-            printTestMessage("cleaned up after");
             success = true;
         } finally {
             if (!success) {
@@ -1806,9 +1812,14 @@ public abstract class ESIntegTestCase extends ESTestCase {
             nodeMode = "local";
         }
 
+        boolean enableMockModules = enableMockModules();
         return new InternalTestCluster(nodeMode, seed, createTempDir(), minNumDataNodes, maxNumDataNodes,
                 InternalTestCluster.clusterName(scope.name(), seed) + "-cluster", nodeConfigurationSource, getNumClientNodes(),
-                InternalTestCluster.DEFAULT_ENABLE_HTTP_PIPELINING, nodePrefix);
+                InternalTestCluster.DEFAULT_ENABLE_HTTP_PIPELINING, nodePrefix, enableMockModules);
+    }
+
+    protected boolean enableMockModules() {
+        return RandomizedTest.systemPropertyAsBoolean(TESTS_ENABLE_MOCK_MODULES, true);
     }
 
     /**
@@ -1939,20 +1950,26 @@ public abstract class ESIntegTestCase extends ESTestCase {
 
     @Before
     public final void before() throws Exception {
+
         if (runTestScopeLifecycle()) {
+            printTestMessage("setup");
             beforeInternal();
         }
+        printTestMessage("starting");
     }
 
 
     @After
     public final void after() throws Exception {
+        printTestMessage("finished");
         // Deleting indices is going to clear search contexts implicitely so we
         // need to check that there are no more in-flight search contexts before
         // we remove indices
         super.ensureAllSearchContextsReleased();
         if (runTestScopeLifecycle()) {
+            printTestMessage("cleaning up after");
             afterInternal(false);
+            printTestMessage("cleaned up after");
         }
     }
 
@@ -1960,6 +1977,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
     public static void afterClass() throws Exception {
         if (!runTestScopeLifecycle()) {
             try {
+                INSTANCE.printTestMessage("cleaning up after");
                 INSTANCE.afterInternal(true);
             } finally {
                 INSTANCE = null;
@@ -1985,6 +2003,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
             INSTANCE = (ESIntegTestCase) targetClass.newInstance();
             boolean success = false;
             try {
+                INSTANCE.printTestMessage("setup");
                 INSTANCE.beforeInternal();
                 INSTANCE.setupSuiteScopeCluster();
                 success = true;
