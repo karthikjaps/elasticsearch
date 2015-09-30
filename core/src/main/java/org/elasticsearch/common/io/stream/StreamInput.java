@@ -33,10 +33,10 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.text.StringAndBytesText;
 import org.elasticsearch.common.text.Text;
-import org.elasticsearch.search.aggregations.AggregatorFactory;
-import org.elasticsearch.search.aggregations.pipeline.PipelineAggregatorFactory;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilder;
+import org.elasticsearch.search.aggregations.AggregatorFactory;
+import org.elasticsearch.search.aggregations.pipeline.PipelineAggregatorFactory;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -606,6 +606,7 @@ public abstract class StreamInput extends InputStream {
         return readNamedWriteable(PipelineAggregatorFactory.class);
     }
 
+    /**
      * Reads a {@link QueryBuilder} from the current stream
      */
     public QueryBuilder readQuery() throws IOException {

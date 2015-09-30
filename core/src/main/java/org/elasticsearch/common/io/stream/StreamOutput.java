@@ -31,10 +31,10 @@ import org.elasticsearch.Version;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.text.Text;
-import org.elasticsearch.search.aggregations.AggregatorFactory;
-import org.elasticsearch.search.aggregations.pipeline.PipelineAggregatorFactory;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilder;
+import org.elasticsearch.search.aggregations.AggregatorFactory;
+import org.elasticsearch.search.aggregations.pipeline.PipelineAggregatorFactory;
 import org.joda.time.ReadableInstant;
 
 import java.io.EOFException;
@@ -598,6 +598,8 @@ public abstract class StreamOutput extends OutputStream {
     public void writePipelineAggregatorFactory(PipelineAggregatorFactory factory) throws IOException {
         writeNamedWriteable(factory);
     }
+
+    /**
      * Writes a {@link QueryBuilder} to the current stream
      */
     public void writeQuery(QueryBuilder queryBuilder) throws IOException {
